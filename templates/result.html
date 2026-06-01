@@ -33,6 +33,10 @@
       </a>
     {% endif %}
   </div>
+  <p class="muted edit-cta">
+    ¿Necesitas ajustar mediciones, precios o IVA antes de enviarlo?
+    <a href="{{ url_for('edit', job_id=job_id) }}"><strong>Editar partidas y regenerar PDFs →</strong></a>
+  </p>
 </section>
 {% endif %}
 

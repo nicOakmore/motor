@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Editar partidas — {{ manifest.memoria_name }}{% endblock %}
+{% block content %}
+
+{% set m = manifest %}
+
+<section class="hero">
+  <h1>Editar partidas <small>· {{ m.memoria_name }}</small></h1>
+  <p class="muted">
+    Ajusta medición, precio unitario o IVA por partida. Elimina filas que
+    no procedan o añade nuevas desde el catálogo. Al guardar, el motor
+    recalcula PEM → PEC → IVA → TOTAL y regenera los PDFs.
+  </p>
+</section>
+
+<form action="{{ url_for('save_edits', job_id=job_id) }}" method="post" class="editor">
+
+  <section class="card">
+    <h2>Partidas</h2>
+    <table class="partidas editor-table" id="partidas-table">
+      <thead>
+        <tr>
+          <th style="width:10mm">#</th>
+          <th>Descripción</th>
+          <th>Ud</th>
+          <th class="num">Medición</th>
+          <th class="num">Precio ud (€)</th>
+          <th class="num">IVA (%)</th>
+          <th class="num">Importe</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in m.partidas %}
+        {% set idx = loop.index0 %}
+        <tr data-idx="{{ idx }}">
+          <td>{{ loop.index }}</td>
+          <td>
+            <input type="hidden" name="p_{{ idx }}_code" value="{{ p.price_ref or p.code }}">
+            <input type="hidden" name="p_{{ idx }}_capitulo" value="{{ p.capitulo }}">
+            <input type="text" name="p_{{ idx }}_descripcion" value="{{ p.descripcion }}">
+          </td>
+          <td>
+            <input type="text" name="p_{{ idx }}_unidad" value="{{ p.unidad }}" style="width:38px">
+          </td>
+          <td class="num">
+            <input type="number" step="0.01" min="0" name="p_{{ idx }}_medicion" value="{{ '%.2f' | format(p.medicion) }}" class="num-input medicion-input">
+          </td>
+          <td class="num">
+            <input type="number" step="0.01" min="0" name="p_{{ idx }}_precio_unitario" value="{{ '%.2f' | format(p.precio_unitario) }}" class="num-input precio-input">
+          </td>
+          <td class="num">
+            <input type="number" step="0.5" min="0" max="100" name="p_{{ idx }}_iva_pct" value="{{ ((p.iva_pct or m.totales.iva_pct) * 100) | round(1) }}" class="num-input iva-input">
+          </td>
+          <td class="num importe-cell"><span>{{ p.importe | eur }}</span></td>
+          <td>
+            <label class="remove-toggle">
+              <input type="checkbox" name="p_{{ idx }}_remove" value="1"> ✕
+            </label>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="add-row">
+          <td colspan="2">
+            <label for="add-from-cat">Añadir desde catálogo</label>
+            <select id="add-from-cat">
+              <option value="">— elegir partida —</option>
+              {% for row in catalogue %}
+                <option
+                  value="{{ row.code }}"
+                  data-descripcion="{{ row.descripcion }}"
+                  data-unidad="{{ row.unidad }}"
+                  data-precio="{{ row.precio_unitario }}">
+                  {{ row.code }} · {{ row.descripcion[:80] }} · {{ row.unidad }} · {{ '%.2f' | format(row.precio_unitario) }} €
+                </option>
+              {% endfor %}
+            </select>
+          </td>
+          <td colspan="6">
+            <button type="button" id="add-row-btn">+ Añadir</button>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Parámetros del proyecto (opcional)</h2>
+    <p class="muted">Dejar en blanco para usar los valores por defecto de rules.json.</p>
+    <div class="param-grid">
+      <label>GG (%) <input type="number" step="0.1" name="pp_gg_pct" placeholder="{{ (params.gg_pct * 100) | round(1) }}"></label>
+      <label>BI (%) <input type="number" step="0.1" name="pp_bi_pct" placeholder="{{ (params.bi_pct * 100) | round(1) }}"></label>
+      <label>IVA por defecto (%) <input type="number" step="0.5" name="pp_iva_pct" placeholder="{{ (params.iva_pct * 100) | round(1) }}"></label>
+      <label>Retención IRPF (%) <input type="number" step="0.5" name="pp_retencion_irpf_pct" placeholder="{{ (params.retencion_irpf_pct * 100) | round(1) }}"></label>
+      <label>Recargo equivalencia (%) <input type="number" step="0.1" name="pp_recargo_equivalencia_pct" placeholder="{{ (params.recargo_equivalencia_pct * 100) | round(2) }}"></label>
+    </div>
+    <p class="muted">
+      Los porcentajes se introducen como número entero (ej. <code>10</code> = 10 %).
+    </p>
+  </section>
+
+  <section class="card actions">
+    <button type="submit" class="primary">Recalcular y regenerar PDFs</button>
+    <a href="{{ url_for('result', job_id=job_id) }}" class="cancel">Cancelar</a>
+  </section>
+
+</form>
+
+<script>
+(function () {
+  const tbody = document.querySelector('#partidas-table tbody');
+  // Live importe = medición × precio
+  function updateImporte(row) {
+    const med = parseFloat(row.querySelector('.medicion-input').value) || 0;
+    const pu  = parseFloat(row.querySelector('.precio-input').value)   || 0;
+    const cell = row.querySelector('.importe-cell span');
+    const total = (med * pu);
+    cell.textContent = total.toLocaleString('es-ES', {
+      style: 'currency', currency: 'EUR', minimumFractionDigits: 2
+    });
+  }
+  tbody.addEventListener('input', function (ev) {
+    if (ev.target.matches('.medicion-input, .precio-input')) {
+      updateImporte(ev.target.closest('tr'));
+    }
+  });
+
+  // Add a new row from the catalogue dropdown
+  document.getElementById('add-row-btn').addEventListener('click', function () {
+    const sel = document.getElementById('add-from-cat');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) return;
+    const existingRows = tbody.querySelectorAll('tr');
+    const idx = existingRows.length + Math.floor(Math.random() * 1000) + 1000;
+    const tr = document.createElement('tr');
+    tr.dataset.idx = idx;
+    tr.innerHTML = `
+      <td>${existingRows.length + 1}</td>
+      <td>
+        <input type="hidden" name="p_${idx}_code" value="${opt.value}">
+        <input type="hidden" name="p_${idx}_capitulo" value="">
+        <input type="text" name="p_${idx}_descripcion" value="${opt.dataset.descripcion}">
+      </td>
+      <td><input type="text" name="p_${idx}_unidad" value="${opt.dataset.unidad}" style="width:38px"></td>
+      <td class="num"><input type="number" step="0.01" min="0" name="p_${idx}_medicion" value="1.00" class="num-input medicion-input"></td>
+      <td class="num"><input type="number" step="0.01" min="0" name="p_${idx}_precio_unitario" value="${parseFloat(opt.dataset.precio).toFixed(2)}" class="num-input precio-input"></td>
+      <td class="num"><input type="number" step="0.5" min="0" max="100" name="p_${idx}_iva_pct" value="10.0" class="num-input iva-input"></td>
+      <td class="num importe-cell"><span>—</span></td>
+      <td><label class="remove-toggle"><input type="checkbox" name="p_${idx}_remove" value="1"> ✕</label></td>`;
+    tbody.appendChild(tr);
+    updateImporte(tr);
+    sel.value = '';
+  });
+})();
+</script>
+{% endblock %}

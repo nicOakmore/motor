@@ -155,10 +155,11 @@ def build() -> pathlib.Path:
     story.append(Paragraph("Flujo de trabajo", h2))
     wf_rows = [
         ("1", "Acceder a <b>https://motor-presupuestos.onrender.com</b> con usuario y contraseña."),
-        ("2", "Elegir una memoria de muestra o subir la propia (.md / .txt)."),
-        ("3", "El motor genera el presupuesto, las partidas por capítulo, el plan de obra con fechas reales (excluye fines de semana y festivos) y las banderas regulatorias."),
-        ("4", "Descargar los entregables: <b>Presupuesto cliente</b> (PDF con cabecera Rex Construcciones), <b>Plan de obra</b> (PDF con calendario y diagrama de barras), plan_acopios.csv, flags.md, presupuesto.bc3 (FIEBDC-3) y la traza completa."),
-        ("5", "Trazar cualquier euro: traza.md → partida → price_ref + scope_ref + regla que lo produjo."),
+        ("2", "Elegir una memoria de muestra o subir la propia (.md / .txt). El parser reconoce ~80 verbos del catálogo."),
+        ("3", "El motor genera el presupuesto, las partidas por capítulo, el plan de obra con fechas reales (excluye fines de semana y festivos de Baleares) y las banderas regulatorias."),
+        ("4", "<b>Editar partidas en el navegador</b> (medición, precio, IVA por partida, añadir/eliminar desde el catálogo de 111 partidas, sobrescribir GG/BI/IVA por defecto/retención IRPF/recargo de equivalencia). Recalcula y regenera los PDFs al instante."),
+        ("5", "Descargar los entregables: <b>Presupuesto cliente</b> (PDF Rex Construcciones), <b>Plan de obra</b> (PDF con calendario), plan_acopios.csv, flags.md, presupuesto.bc3 y la traza."),
+        ("6", "Trazar cualquier euro: traza.md → partida → price_ref + scope_ref + regla que lo produjo."),
     ]
     workflow_data = [[Paragraph(n, cell_sb), Paragraph(t, cell_s)] for n, t in wf_rows]
     wf_tbl = Table(workflow_data, colWidths=[6 * mm, 172 * mm])

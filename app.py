@@ -218,6 +218,151 @@ def result(job_id: str):
     )
 
 
+@app.get("/j/<job_id>/edit")
+def edit(job_id: str):
+    """Render the partida editor for the given job."""
+    d = _job_dir(job_id)
+    manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+    catalogue = run_demo.load_price_catalogue()
+    rules_spec = json.loads((ROOT / "rules.json").read_text(encoding="utf-8"))
+    params = rules_spec.get("parameters", {})
+    return render_template(
+        "edit.html",
+        job_id=job_id,
+        manifest=manifest,
+        catalogue=sorted(catalogue, key=lambda r: r["code"]),
+        params=params,
+    )
+
+
+@app.post("/j/<job_id>/save")
+def save_edits(job_id: str):
+    """Accept edited partidas + project-param overrides, recompute totales,
+    regenerate every output artefact. The original regulatory flags from
+    the first run are preserved (edits don't re-fire mapping rules)."""
+    d = _job_dir(job_id)
+    manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+
+    rules_spec = json.loads((ROOT / "rules.json").read_text(encoding="utf-8"))
+    catalogue = {row["code"]: row for row in run_demo.load_price_catalogue()}
+    metadata = rules_spec.get("concepto_metadata", {})
+    # secondary lookup: capitulo / unidad by price_code so newly-added rows
+    # from the catalogue get their meta filled in.
+    code_to_meta = {v["price_code"]: v for v in metadata.values()
+                    if isinstance(v, dict) and v.get("price_code")}
+
+    # Project-param overrides
+    params = dict(rules_spec.get("parameters", {}))
+    for key in ("gg_pct", "bi_pct", "iva_pct", "retencion_irpf_pct",
+                "recargo_equivalencia_pct"):
+        raw = (request.form.get(f"pp_{key}") or "").strip()
+        if raw:
+            try:
+                params[key] = float(raw)
+            except ValueError:
+                pass
+    rules_spec["parameters"] = params
+
+    # Parse partidas — fields are p_<idx>_<field>.
+    indices = set()
+    for k in request.form:
+        m = re.match(r"^p_(\d+)_", k)
+        if m:
+            indices.add(int(m.group(1)))
+    edited: list[dict] = []
+    counter = 0
+    for i in sorted(indices):
+        if request.form.get(f"p_{i}_remove") == "1":
+            continue
+        code = (request.form.get(f"p_{i}_code") or "").strip()
+        # New rows may not have a code yet — get one from a fresh
+        # catalogue selection field.
+        if not code:
+            code = (request.form.get(f"p_{i}_new_from_catalogue") or "").strip()
+        try:
+            medicion = float((request.form.get(f"p_{i}_medicion") or "0").replace(",", "."))
+        except ValueError:
+            medicion = 0.0
+        if medicion <= 0:
+            continue
+        try:
+            precio = float((request.form.get(f"p_{i}_precio_unitario") or "0").replace(",", "."))
+        except ValueError:
+            precio = 0.0
+        cat = catalogue.get(code, {})
+        meta_entry = code_to_meta.get(code, {})
+        descripcion = (request.form.get(f"p_{i}_descripcion") or
+                       cat.get("descripcion") or
+                       meta_entry.get("descripcion_corta") or
+                       code or "")
+        unidad = (request.form.get(f"p_{i}_unidad") or
+                  cat.get("unidad") or meta_entry.get("unidad") or "ud")
+        capitulo = (request.form.get(f"p_{i}_capitulo") or
+                    meta_entry.get("capitulo") or "Sin capítulo")
+        iva_raw = (request.form.get(f"p_{i}_iva_pct") or "").strip()
+        iva_pct = None
+        if iva_raw:
+            try:
+                iva_pct = float(iva_raw.replace(",", "."))
+                if iva_pct > 1.0:        # user typed "10" meaning 10%
+                    iva_pct = iva_pct / 100.0
+            except ValueError:
+                iva_pct = None
+        # If no precio supplied, use catalogue default.
+        if precio == 0.0:
+            precio = float(cat.get("precio_unitario") or 0.0)
+        counter += 1
+        partida = {
+            "code": f"P{counter:03d}",
+            "capitulo": capitulo,
+            "descripcion": descripcion,
+            "unidad": unidad,
+            "medicion": medicion,
+            "precio_unitario": precio,
+            "importe": round(medicion * precio, 2),
+            "price_ref": code,
+        }
+        if iva_pct is not None:
+            partida["iva_pct"] = iva_pct
+        edited.append(partida)
+
+    if not edited:
+        return _err("El presupuesto no puede quedarse sin partidas.", 400)
+
+    totales = run_demo.recompute_totales(edited, rules_spec)
+
+    out_dir = (d / "salidas" / manifest["out_subdir"]).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Regulatory flags from the initial run are preserved; the editor doesn't
+    # re-run mapping rules.
+    new = run_demo.write_artefacts(
+        out_dir=out_dir,
+        meta=manifest["meta"],
+        partidas=edited,
+        totales=totales,
+        flags=manifest.get("flags", []),
+        acopios=manifest.get("acopios", []),
+        trace_rows=[],
+        rules_spec=rules_spec,
+        project_title=manifest.get("memoria_name", "").replace(".md", ""),
+    )
+
+    # Refresh manifest.json with the new totales + partidas; preserve fields
+    # the editor doesn't touch.
+    new_manifest = {
+        **manifest,
+        "totales": new["totales"],
+        "partidas": new["partidas"],
+        "edited": True,
+    }
+    (d / "manifest.json").write_text(
+        json.dumps(new_manifest, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return redirect(url_for("result", job_id=job_id))
+
+
 @app.get("/j/<job_id>/<path:filename>")
 def download(job_id: str, filename: str):
     d = _job_dir(job_id)

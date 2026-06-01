@@ -108,32 +108,76 @@ class Engine:
 
 def compute_presupuesto(wm: WorkingMemory) -> dict:
     """Aggregate partida facts into the regulated cost build-up.
-    All percentages are read from project-param facts."""
+
+    Mixed-IVA support: if a partida fact carries an `iva_pct` override,
+    that rate is used for its share of the PEC; otherwise the project
+    default applies. IVA totals are surfaced as a breakdown so the
+    client-facing budget can show "IVA 10% / IVA 21%" separately when
+    the project mixes uses (e.g. vivienda + garaje).
+
+    Retención IRPF (autónomos) is withheld on the PEC. Recargo de
+    equivalencia is added on the PEC. TOTAL is the cash the client
+    pays the contractor: PEC + IVA + recargo − retención.
+
+    All percentages come from project-param facts (seeded from rules.json).
+    """
     def param(clave, default):
         rows = wm.query("project-param", clave=clave)
         return float(rows[-1]["valor"]) if rows else default
 
     gg_pct = param("gg_pct", 0.13)
     bi_pct = param("bi_pct", 0.06)
-    iva_pct = param("iva_pct", 0.10)
+    iva_pct_default = param("iva_pct", 0.10)
     icio_pct = param("icio_pct", 0.0)
+    retencion_pct = param("retencion_irpf_pct", 0.0)
+    recargo_pct = param("recargo_equivalencia_pct", 0.0)
+    pec_factor = 1.0 + gg_pct + bi_pct
 
     partidas = wm.query("partida")
-    pem = round(sum(float(p["importe"]) for p in partidas if p.get("importe") is not None), 2)
+    pem = 0.0
+    pec = 0.0
+    iva_by_rate: dict[float, float] = {}
+    for p in partidas:
+        importe = float(p.get("importe") or 0.0)
+        if importe == 0.0:
+            continue
+        pem += importe
+        # Each partida contributes importe*(1+gg+bi) to PEC; its IVA is at
+        # its own rate (or the project default).
+        partida_pec_share = importe * pec_factor
+        pec += partida_pec_share
+        rate = float(p.get("iva_pct", iva_pct_default))
+        iva_by_rate[rate] = iva_by_rate.get(rate, 0.0) + partida_pec_share * rate
+
+    pem = round(pem, 2)
     gg = round(pem * gg_pct, 2)
     bi = round(pem * bi_pct, 2)
     pec = round(pem + gg + bi, 2)
-    iva = round(pec * iva_pct, 2)
-    total = round(pec + iva, 2)
+    iva_total = round(sum(iva_by_rate.values()), 2)
+    retencion = round(pec * retencion_pct, 2)
+    recargo = round(pec * recargo_pct, 2)
+    total = round(pec + iva_total + recargo - retencion, 2)
     icio = round(pem * icio_pct, 2)
+
+    iva_breakdown = sorted(
+        [(f"IVA ({int(rate * 100) if rate * 100 == int(rate * 100) else round(rate * 100, 1)}%)",
+          round(v, 2)) for rate, v in iva_by_rate.items()],
+        key=lambda kv: kv[0],
+    )
 
     result = {
         "PEM": pem, "GG": gg, "BI": bi, "PEC": pec,
-        "IVA": iva, "TOTAL": total, "ICIO": icio,
-        "gg_pct": gg_pct, "bi_pct": bi_pct, "iva_pct": iva_pct,
+        "IVA": iva_total, "TOTAL": total, "ICIO": icio,
+        "RETENCION": retencion, "RECARGO_EQUIV": recargo,
+        "gg_pct": gg_pct, "bi_pct": bi_pct, "iva_pct": iva_pct_default,
+        "retencion_pct": retencion_pct, "recargo_pct": recargo_pct,
+        "iva_breakdown": iva_breakdown,
     }
     for k, v in result.items():
-        wm.assert_fact("metric-result", {"clave": k, "valor": v}, produced_by="compute_presupuesto")
+        if k == "iva_breakdown":
+            continue
+        wm.assert_fact("metric-result", {"clave": k, "valor": v},
+                       produced_by="compute_presupuesto")
     return result
 
 

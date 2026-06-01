@@ -483,6 +483,169 @@ def render_trace(wm: engine.WorkingMemory) -> str:
 # Main
 # --------------------------------------------------------------------------
 
+def write_artefacts(out_dir: pathlib.Path,
+                    meta: dict,
+                    partidas: list[dict],
+                    totales: dict,
+                    flags: list[dict],
+                    acopios: list[dict],
+                    trace_rows: list[dict],
+                    rules_spec: dict,
+                    project_title: str | None = None) -> dict:
+    """Write every output artefact from a final partida set.
+
+    Pure rendering — no engine inference. Used both by the initial
+    pipeline (after the engine fires) and by the editor's save handler
+    (after the user overrides partidas). Returns a manifest dict.
+    """
+    import hashlib, datetime as _dt
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    capitulos = rules_spec.get("capitulo_orden", [])
+    firm = rules_spec.get("firm", {})
+    festivos_raw = rules_spec.get("festivos", {}).get("dias", [])
+    festivos = [_dt.date.fromisoformat(s) for s in festivos_raw]
+    duraciones = {k: v for k, v in
+                  rules_spec.get("duracion_capitulo_dias", {}).items()
+                  if not k.startswith("_")}
+
+    h = hashlib.sha1(
+        f"{meta.get('memoria','')}-{totales['PEM']:.2f}".encode("utf-8")
+    ).hexdigest()[:6].upper()
+    ref = f"{firm.get('ref_series', _dt.date.today().year)}.{h}"
+
+    # Markdown + JSON for programmatic / dev use
+    md = _render_presupuesto_md(meta, totales, partidas, capitulos)
+    (out_dir / "presupuesto.md").write_text(md, encoding="utf-8")
+    (out_dir / "presupuesto.json").write_text(
+        json.dumps({"meta": meta, "totales": totales, "partidas": partidas},
+                   indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    (out_dir / "plan_acopios.csv").write_text(
+        render_acopios_csv(acopios), encoding="utf-8")
+    (out_dir / "flags.md").write_text(
+        _render_flags_md(flags), encoding="utf-8")
+    if trace_rows:
+        (out_dir / "traza.md").write_text(
+            _render_trace_md(trace_rows), encoding="utf-8")
+
+    bc3_text = bc3.write_bc3(partidas, programa="MotorPresupuestos")
+    (out_dir / "presupuesto.bc3").write_text(bc3_text, encoding="latin-1")
+
+    client_pdfs.build_presupuesto_pdf(
+        out_dir / "presupuesto_cliente.pdf",
+        firm=firm, meta=meta, totales=totales,
+        partidas=partidas, capitulo_orden=capitulos, ref=ref,
+        project_title=project_title,
+    )
+    client_pdfs.build_plan_obra_pdf(
+        out_dir / "plan_de_obra.pdf",
+        firm=firm, meta=meta, partidas=partidas,
+        duracion_dias=duraciones, capitulo_orden=capitulos, ref=ref,
+        festivos=festivos, project_title=project_title,
+    )
+
+    return {
+        "ref": ref,
+        "meta": meta,
+        "totales": totales,
+        "partidas": partidas,
+        "flags": flags,
+        "acopios": acopios,
+    }
+
+
+def _render_presupuesto_md(meta: dict, totales: dict,
+                            partidas: list[dict], capitulo_orden: list[str]) -> str:
+    by_cap: dict[str, list[dict]] = {}
+    for p in partidas:
+        by_cap.setdefault(p["capitulo"], []).append(p)
+    out = []
+    out.append(f"# Presupuesto — {meta.get('memoria','(sin nombre)')}")
+    out.append("")
+    out.append(f"- Suelo: **{meta.get('suelo')}**")
+    out.append(f"- Uso: **{meta.get('uso')}**")
+    out.append(f"- Proyecto técnico: **{'sí' if meta.get('requiere_proyecto') else 'no'}**")
+    out.append("")
+    ordered = [c for c in capitulo_orden if c in by_cap] + \
+              [c for c in by_cap if c not in capitulo_orden]
+    for cap in ordered:
+        out.append(f"## Capítulo — {cap}")
+        out.append("")
+        out.append("| Code | Descripción | Ud | Medición | Precio ud | Importe |")
+        out.append("|------|-------------|----|---------:|----------:|--------:|")
+        subtotal = 0.0
+        for p in by_cap[cap]:
+            subtotal += float(p["importe"])
+            out.append(
+                f"| {p['code']} | {p['descripcion']} | {p['unidad']} | "
+                f"{float(p['medicion']):.2f} | {fmt_eur(float(p['precio_unitario']))} | "
+                f"{fmt_eur(float(p['importe']))} |"
+            )
+        out.append(f"| | | | | **Subtotal** | **{fmt_eur(subtotal)}** |")
+        out.append("")
+    out.append("## Cuadro resumen (RD 1098/2001)")
+    out.append("")
+    out.append("| Concepto | Importe |")
+    out.append("|----------|--------:|")
+    out.append(f"| PEM | {fmt_eur(totales['PEM'])} |")
+    out.append(f"| GG ({totales['gg_pct']*100:.0f}%) | {fmt_eur(totales['GG'])} |")
+    out.append(f"| BI ({totales['bi_pct']*100:.0f}%) | {fmt_eur(totales['BI'])} |")
+    out.append(f"| **PEC** | **{fmt_eur(totales['PEC'])}** |")
+    for label, val in totales.get("iva_breakdown", []) or [(f"IVA ({totales['iva_pct']*100:.0f}%)", totales['IVA'])]:
+        out.append(f"| {label} | {fmt_eur(val)} |")
+    if totales.get("RETENCION"):
+        out.append(f"| Retención IRPF ({totales['retencion_pct']*100:.1f}%) | -{fmt_eur(totales['RETENCION'])} |")
+    if totales.get("RECARGO_EQUIV"):
+        out.append(f"| Recargo de equivalencia ({totales['recargo_pct']*100:.2f}%) | {fmt_eur(totales['RECARGO_EQUIV'])} |")
+    out.append(f"| **TOTAL** | **{fmt_eur(totales['TOTAL'])}** |")
+    out.append(f"| ICIO (orientativo, sobre PEM) | {fmt_eur(totales['ICIO'])} |")
+    return "\n".join(out) + "\n"
+
+
+def _render_flags_md(flags: list[dict]) -> str:
+    order = {"STOP": 0, "WARN": 1, "INFO": 2}
+    flags = sorted(flags, key=lambda f: order.get(f.get("nivel", "INFO"), 3))
+    out = ["# Checklist regulatorio", ""]
+    if not flags:
+        out.append("_Sin banderas levantadas._")
+        return "\n".join(out) + "\n"
+    for f in flags:
+        out.append(f"## [{f['nivel']}] {f['codigo']}")
+        if f.get("rule"):
+            out.append(f"- Regla origen: `{f['rule']}`")
+        out.append(f"- {f['mensaje']}")
+        out.append("")
+    return "\n".join(out) + "\n"
+
+
+def _render_trace_md(trace_rows: list[dict]) -> str:
+    out = ["# Traza de hechos (provenance)", "",
+           "| # | Kind | produced_by | Data |",
+           "|---|------|-------------|------|"]
+    for f in trace_rows:
+        if f.get("kind") == "_fired":
+            continue
+        data = json.dumps(f.get("data", {}), ensure_ascii=False)
+        if len(data) > 120:
+            data = data[:117] + "..."
+        out.append(f"| {f.get('id','?')} | `{f.get('kind','')}` | `{f.get('produced_by','')}` | `{data}` |")
+    return "\n".join(out) + "\n"
+
+
+def recompute_totales(partidas: list[dict], rules_spec: dict) -> dict:
+    """Recompute totales for an edited partida list — same engine math,
+    no re-running of mapping/regulatory rules."""
+    wm = engine.WorkingMemory()
+    for clave, valor in rules_spec.get("parameters", {}).items():
+        if isinstance(valor, (int, float, str, bool)):
+            wm.assert_fact("project-param", {"clave": clave, "valor": valor})
+    for p in partidas:
+        wm.assert_fact("partida", p, produced_by="editor_override")
+    return engine.compute_presupuesto(wm)
+
+
 def run_for_memoria(memoria_path: pathlib.Path,
                     out_root: pathlib.Path | None = None,
                     verbose: bool = True) -> dict:
@@ -555,49 +718,20 @@ def run_for_memoria(memoria_path: pathlib.Path,
     out_dir = out_root / memoria_path.stem
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    (out_dir / "presupuesto.md").write_text(
-        render_presupuesto(wm, totales, parsed["meta"], rules_spec.get("capitulo_orden", [])),
-        encoding="utf-8",
-    )
-    (out_dir / "presupuesto.json").write_text(
-        json.dumps({
-            "meta": parsed["meta"],
-            "totales": totales,
-            "partidas": [f.data for f in wm.query("partida")],
-        }, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    (out_dir / "plan_acopios.csv").write_text(render_acopios_csv(plan), encoding="utf-8")
-    (out_dir / "flags.md").write_text(render_flags(wm), encoding="utf-8")
-    (out_dir / "traza.md").write_text(render_trace(wm), encoding="utf-8")
+    # Snapshot a serialisable trace for traza.md before writing artefacts.
+    trace_rows = [{"id": f._id, "kind": f.kind, "produced_by": f.produced_by,
+                   "data": f.data} for f in wm.all()]
+    flags_with_rule = [f.data | {"rule": f.produced_by} for f in wm.query("flag")]
 
-    bc3_text = bc3.write_bc3([f.data for f in wm.query("partida")],
-                             programa="MotorPresupuestos")
-    (out_dir / "presupuesto.bc3").write_text(bc3_text, encoding="latin-1")
-
-    # Client-facing PDFs. Reference looks like REX's internal numbering:
-    # <ref_series>.<short hash>, e.g. 2026.1CEA635D.
-    import hashlib, datetime as _dt
-    h = hashlib.sha1(f"{memoria_path.stem}-{totales['PEM']:.2f}".encode("utf-8")
-                     ).hexdigest()[:6].upper()
-    ref = f"{rules_spec.get('firm',{}).get('ref_series', _dt.date.today().year)}.{h}"
-    firm = rules_spec.get("firm", {})
-    duraciones = {k: v for k, v in
-                  rules_spec.get("duracion_capitulo_dias", {}).items()
-                  if not k.startswith("_")}
-    capitulos = rules_spec.get("capitulo_orden", [])
-    festivos_raw = rules_spec.get("festivos", {}).get("dias", [])
-    festivos = [_dt.date.fromisoformat(s) for s in festivos_raw]
-    client_pdfs.build_presupuesto_pdf(
-        out_dir / "presupuesto_cliente.pdf",
-        firm=firm, meta=parsed["meta"], totales=totales,
-        partidas=partidas_out, capitulo_orden=capitulos, ref=ref,
-    )
-    client_pdfs.build_plan_obra_pdf(
-        out_dir / "plan_de_obra.pdf",
-        firm=firm, meta=parsed["meta"], partidas=partidas_out,
-        duracion_dias=duraciones, capitulo_orden=capitulos, ref=ref,
-        festivos=festivos,
+    write_artefacts(
+        out_dir=out_dir,
+        meta=parsed["meta"],
+        partidas=partidas_out,
+        totales=totales,
+        flags=flags_with_rule,
+        acopios=plan,
+        trace_rows=trace_rows,
+        rules_spec=rules_spec,
     )
 
     if verbose:
