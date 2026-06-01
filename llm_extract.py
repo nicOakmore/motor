@@ -30,10 +30,11 @@ import urllib.request
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
-# Cap the memoria payload so we stay inside Groq's free-tier per-minute
-# token budget. 40 000 chars ≈ 10 000 tokens — fits inside the per-call
-# budget while leaving room for the catalogue list and the response.
-MAX_MEMORIA_CHARS = 40_000
+# Groq free-tier TPM limits for llama-3.3-70b-versatile = 12 000 tokens
+# per minute. Our payload = system + memoria + catalogue + reserve for
+# response. The catalogue is ~3 500 tokens, response budget 1 024 tokens,
+# system ~250 tokens → memoria budget ≈ 7 000 tokens ≈ 28 000 chars.
+MAX_MEMORIA_CHARS = 24_000
 REQUEST_TIMEOUT = 60        # seconds
 
 
@@ -100,15 +101,37 @@ SYSTEM_PROMPT = (
 )
 
 
+def _slice_memoria(cleaned: str, max_chars: int) -> str:
+    """Trim to max_chars. When the memoria is longer, we try to centre
+    the window on the descriptive content (markers like "MEMORIA
+    CONSTRUCTIVA", "PROPUESTA DE INTERVENCIÓN", "DESCRIPCIÓN DEL
+    PROYECTO") — BUT only if there's still meaningful content after the
+    marker. Otherwise we fall back to the head, which usually contains
+    the project intro + early descriptive sections."""
+    if len(cleaned) <= max_chars:
+        return cleaned
+    head_lc = cleaned.lower()
+    best_start = 0
+    for marker in ("propuesta de intervención", "propuesta de intervencion",
+                    "descripción del proyecto", "descripcion del proyecto",
+                    "memoria constructiva", "alcance de obra",
+                    "alcance de la obra"):
+        i = head_lc.find(marker)
+        # Only use the marker if it leaves enough content after it to be
+        # useful — otherwise the head is a better window.
+        if i > 0 and (len(cleaned) - i) >= max_chars * 0.4:
+            best_start = max(0, i - 400)
+            break
+    return cleaned[best_start:best_start + max_chars] + "\n[…final truncado…]"
+
+
 def _build_user_message(memoria_text: str, tipos_catalogue: dict) -> str:
     """Compact user message: the memoria's descriptive content (TOC and
     signature noise removed) plus the catalogue of accepted tipos as JSON.
     The tipos block sits at the END so prompt-cache hits compound across
     calls (Groq supports OpenAI-style prompt caching transparently)."""
     cleaned = _strip_toc(memoria_text)
-    text = cleaned[:MAX_MEMORIA_CHARS]
-    if len(cleaned) > MAX_MEMORIA_CHARS:
-        text = text + "\n[…texto truncado por longitud…]"
+    text = _slice_memoria(cleaned, MAX_MEMORIA_CHARS)
     tipos = {k: v.get("descripcion_corta", "") for k, v in tipos_catalogue.items()
              if isinstance(v, dict) and not k.startswith("_")}
     return (
