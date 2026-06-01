@@ -251,16 +251,21 @@ def save_edits(job_id: str):
     code_to_meta = {v["price_code"]: v for v in metadata.values()
                     if isinstance(v, dict) and v.get("price_code")}
 
-    # Project-param overrides
+    # Project-param overrides. The form uses whole-percent inputs (e.g. "10"
+    # for 10%); convert to fractions consistent with rules.json.
     params = dict(rules_spec.get("parameters", {}))
     for key in ("gg_pct", "bi_pct", "iva_pct", "retencion_irpf_pct",
                 "recargo_equivalencia_pct"):
         raw = (request.form.get(f"pp_{key}") or "").strip()
-        if raw:
-            try:
-                params[key] = float(raw)
-            except ValueError:
-                pass
+        if not raw:
+            continue
+        try:
+            v = float(raw.replace(",", "."))
+        except ValueError:
+            continue
+        if v > 1.0:                 # whole-percent → fraction
+            v = v / 100.0
+        params[key] = v
     rules_spec["parameters"] = params
 
     # Parse partidas — fields are p_<idx>_<field>.
