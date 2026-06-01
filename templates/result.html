@@ -40,6 +40,32 @@
 </section>
 {% endif %}
 
+{% set annex_files = [
+  ('pliego_condiciones.pdf',       'Pliego de condiciones'),
+  ('estudio_seguridad_salud.pdf',  'Estudio de Seguridad y Salud'),
+  ('plan_gestion_rcd.pdf',         'Plan de gestión de RCD'),
+  ('plan_control_calidad.pdf',     'Plan de control de calidad'),
+] %}
+{% set annex_present = annex_files | selectattr(0, 'in', artefacts) | list %}
+{% if annex_present %}
+<section class="card annex-cta">
+  <h2>Anexos regulatorios (proyecto técnico)</h2>
+  <p class="muted">
+    Generados automáticamente porque la memoria requiere proyecto técnico
+    (LOE 38/1999 + LUIB art. 146). Documentos plantilla a completar por el
+    técnico competente.
+  </p>
+  <div class="cta-row annex-row">
+    {% for f, label in annex_present %}
+      <a class="cta-tile annex-tile" href="{{ url_for('download', job_id=job_id, filename=f) }}">
+        <span class="cta-label">{{ label }}</span>
+        <span class="cta-meta">{{ f }}</span>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <section class="card totals">
   <h2>Cuadro resumen (RD 1098/2001)</h2>
   <table class="totals-table">
@@ -48,7 +74,19 @@
       <tr><td>GG ({{ (t.gg_pct * 100) | round(0, 'floor') | int }}%)</td><td class="num">{{ t.GG | eur }}</td></tr>
       <tr><td>BI ({{ (t.bi_pct * 100) | round(0, 'floor') | int }}%)</td><td class="num">{{ t.BI | eur }}</td></tr>
       <tr class="emph"><td>PEC</td><td class="num">{{ t.PEC | eur }}</td></tr>
-      <tr><td>IVA ({{ (t.iva_pct * 100) | round(0, 'floor') | int }}%)</td><td class="num">{{ t.IVA | eur }}</td></tr>
+      {% if t.iva_breakdown and t.iva_breakdown|length > 1 %}
+        {% for label, val in t.iva_breakdown %}
+          <tr><td>{{ label }}</td><td class="num">{{ val | eur }}</td></tr>
+        {% endfor %}
+      {% else %}
+        <tr><td>IVA ({{ (t.iva_pct * 100) | round(0, 'floor') | int }}%)</td><td class="num">{{ t.IVA | eur }}</td></tr>
+      {% endif %}
+      {% if t.RETENCION %}
+        <tr><td>Retención IRPF ({{ (t.retencion_pct * 100) | round(1) }}%)</td><td class="num">-{{ t.RETENCION | eur }}</td></tr>
+      {% endif %}
+      {% if t.RECARGO_EQUIV %}
+        <tr><td>Recargo de equivalencia ({{ (t.recargo_pct * 100) | round(2) }}%)</td><td class="num">{{ t.RECARGO_EQUIV | eur }}</td></tr>
+      {% endif %}
       <tr class="grand"><td>TOTAL</td><td class="num">{{ t.TOTAL | eur }}</td></tr>
       <tr class="muted"><td>ICIO (orientativo, sobre PEM)</td><td class="num">{{ t.ICIO | eur }}</td></tr>
     </tbody>

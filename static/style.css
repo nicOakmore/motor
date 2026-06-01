@@ -139,6 +139,8 @@ footer.wrap { color: var(--muted); padding-top: 20px; border-top: 1px solid var(
 .cta-tile:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(26,58,92,.18); }
 .cta-tile .cta-label { font-weight: 700; font-size: 16px; }
 .cta-tile .cta-meta  { font-size: 12px; opacity: .85; }
+.annex-row { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.annex-tile { background: linear-gradient(135deg, #4a3a1a, #6e5827); }
 .client-cta .edit-cta { margin: 12px 0 0; }
 .client-cta .edit-cta a { color: var(--brand); text-decoration: none; }
 .client-cta .edit-cta a:hover { text-decoration: underline; }

@@ -157,9 +157,10 @@ def build() -> pathlib.Path:
         ("1", "Acceder a <b>https://motor-presupuestos.onrender.com</b> con usuario y contraseña."),
         ("2", "Elegir una memoria de muestra o subir la propia (.md / .txt). El parser reconoce ~80 verbos del catálogo."),
         ("3", "El motor genera el presupuesto, las partidas por capítulo, el plan de obra con fechas reales (excluye fines de semana y festivos de Baleares) y las banderas regulatorias."),
-        ("4", "<b>Editar partidas en el navegador</b> (medición, precio, IVA por partida, añadir/eliminar desde el catálogo de 111 partidas, sobrescribir GG/BI/IVA por defecto/retención IRPF/recargo de equivalencia). Recalcula y regenera los PDFs al instante."),
-        ("5", "Descargar los entregables: <b>Presupuesto cliente</b> (PDF Rex Construcciones), <b>Plan de obra</b> (PDF con calendario), plan_acopios.csv, flags.md, presupuesto.bc3 y la traza."),
-        ("6", "Trazar cualquier euro: traza.md → partida → price_ref + scope_ref + regla que lo produjo."),
+        ("4", "<b>Editar partidas en el navegador</b> (medición, precio, IVA por partida, añadir/eliminar desde el catálogo de 111 partidas, sobrescribir GG/BI/IVA/retención IRPF/recargo de equivalencia). Recalcula y regenera los PDFs al instante."),
+        ("5", "Si la obra requiere proyecto técnico se generan además los <b>anexos regulatorios</b>: pliego de condiciones, ESS (RD 1627/1997), plan de RCD (RD 105/2008) y plan de control de calidad CTE."),
+        ("6", "Descargar los entregables: <b>Presupuesto cliente</b> + <b>Plan de obra</b> (cabecera Rex Construcciones), los anexos cuando aplican, plan_acopios.csv, flags.md, presupuesto.bc3 y la traza."),
+        ("7", "Trazar cualquier euro: traza.md → partida → price_ref + scope_ref + regla que lo produjo."),
     ]
     workflow_data = [[Paragraph(n, cell_sb), Paragraph(t, cell_s)] for n, t in wf_rows]
     wf_tbl = Table(workflow_data, colWidths=[6 * mm, 172 * mm])

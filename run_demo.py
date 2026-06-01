@@ -44,6 +44,7 @@ import sys
 import engine
 import bc3
 import client_pdfs
+import regulatory_pdfs
 
 
 ROOT = pathlib.Path(__file__).parent
@@ -545,6 +546,30 @@ def write_artefacts(out_dir: pathlib.Path,
         duracion_dias=duraciones, capitulo_orden=capitulos, ref=ref,
         festivos=festivos, project_title=project_title,
     )
+
+    # Mandatory regulatory annexes, only when a proyecto técnico applies
+    # (LOE 38/1999 + LUIB 12/2017 art.146).
+    if meta.get("requiere_proyecto"):
+        regulatory_pdfs.build_pliego_condiciones_pdf(
+            out_dir / "pliego_condiciones.pdf",
+            firm=firm, meta=meta, partidas=partidas, totales=totales,
+            ref=ref, project_title=project_title,
+        )
+        regulatory_pdfs.build_ess_pdf(
+            out_dir / "estudio_seguridad_salud.pdf",
+            firm=firm, meta=meta, partidas=partidas, totales=totales,
+            ref=ref, project_title=project_title,
+        )
+        regulatory_pdfs.build_rcd_pdf(
+            out_dir / "plan_gestion_rcd.pdf",
+            firm=firm, meta=meta, partidas=partidas, totales=totales,
+            ref=ref, project_title=project_title,
+        )
+        regulatory_pdfs.build_control_calidad_pdf(
+            out_dir / "plan_control_calidad.pdf",
+            firm=firm, meta=meta, partidas=partidas, totales=totales,
+            ref=ref, project_title=project_title,
+        )
 
     return {
         "ref": ref,
