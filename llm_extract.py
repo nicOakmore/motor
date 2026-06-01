@@ -88,6 +88,9 @@ def _build_user_message(memoria_text: str, tipos_catalogue: dict) -> str:
 
 
 def _post(payload: dict, api_key: str) -> dict:
+    # Groq's edge is fronted by Cloudflare, which 403s urllib's default
+    # User-Agent ("Python-urllib/3.x") with Error 1010
+    # "browser_signature_banned". Use a real-looking UA.
     req = urllib.request.Request(
         GROQ_ENDPOINT,
         method="POST",
@@ -96,6 +99,10 @@ def _post(payload: dict, api_key: str) -> dict:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
             "Accept": "application/json",
+            "User-Agent": ("Mozilla/5.0 (X11; Linux x86_64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/120.0.0.0 Safari/537.36 "
+                            "MotorPresupuestos/1.0"),
         },
     )
     try:
