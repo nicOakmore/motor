@@ -45,6 +45,7 @@ import engine
 import bc3
 import client_pdfs
 import regulatory_pdfs
+import cuadros_precios
 
 
 ROOT = pathlib.Path(__file__).parent
@@ -202,10 +203,28 @@ SCOPE_VERBS: list[tuple[str, str]] = [
     (r"plantaci[oó]n", "plantacion_arbusto"),
 ]
 
-# Captures the measurement at the end of an item line: "...: **80 m²**" or "...: 80 m²".
-MEASURE_RE = re.compile(r":\s*\*{0,2}\s*(\d+(?:[\.,]\d+)?)\s*\*{0,2}\s*m[²2]", re.IGNORECASE)
+# Captures the measurement at the end of an item line. Units accepted:
+# m², m³, m, ud / unidad(es), kg. The literal "m2"/"m3" forms are tolerated
+# so the parser also reads memorias produced by software that ASCII-folds
+# the superscripts.
+MEASURE_RE = re.compile(
+    r":\s*\*{0,2}\s*(\d+(?:[\.,]\d+)?)\s*\*{0,2}\s*"
+    r"(m[²2³3]?|ud(?:es|s|)?|unidad(?:es)?|kg)\b",
+    re.IGNORECASE,
+)
 # Numbered list item: starts with "N. " (after optional whitespace).
 ITEM_RE = re.compile(r"^\s*\d+\.\s+(.*)", re.MULTILINE)
+# Measurement-rule: huecos to deduct. Recognised forms (in parens after the
+# measurement):  "(con 2 huecos de 1,8 m² cada uno)",  "(descontar 5,4 m² de
+# huecos)",  "(huecos: 5,4 m²)".
+HUECOS_MULTI_RE = re.compile(
+    r"con\s+(\d+)\s+huecos?\s+(?:de\s+)?(\d+(?:[\.,]\d+)?)\s*m[²2]",
+    re.IGNORECASE,
+)
+HUECOS_SUM_RE = re.compile(
+    r"(?:descontar|huecos?)\s*:?\s*(\d+(?:[\.,]\d+)?)\s*m[²2]",
+    re.IGNORECASE,
+)
 
 
 def parse_memoria(path: pathlib.Path) -> dict:
@@ -226,6 +245,12 @@ def parse_memoria(path: pathlib.Path) -> dict:
                   text, re.IGNORECASE)
     )
     uso = "vivienda_habitual" if "vivienda habitual" in text.lower() else "otros"
+
+    text_l = text.lower()
+    uso_turistico = bool(re.search(
+        r"\bturíst[ai]c[oa]s?\b|vacacional|alquiler\s+de\s+temporada|\betv\b",
+        text_l,
+    ))
 
     def _grab(label: str) -> str:
         # Match "**Label:** value …" or "Label: value …", stops at end of line.
@@ -250,22 +275,71 @@ def parse_memoria(path: pathlib.Path) -> dict:
         if measure_match is None:
             continue
         cantidad = float(measure_match.group(1).replace(",", "."))
+
+        # Measurement rule: subtract huecos. Two notations supported (see
+        # HUECOS_*_RE). We search the body AFTER the measurement so the
+        # original total stays in the parser even when the deduction is
+        # noted parenthetically.
+        deduccion = 0.0
+        post = body_clean[measure_match.end():]
+        m = HUECOS_MULTI_RE.search(post)
+        if m:
+            deduccion = int(m.group(1)) * float(m.group(2).replace(",", "."))
+        else:
+            m = HUECOS_SUM_RE.search(post)
+            if m:
+                deduccion = float(m.group(1).replace(",", "."))
+        cantidad_final = max(0.0, cantidad - deduccion)
+
         tipo = None
         for pat, t in SCOPE_VERBS:
-            # match anywhere from the start of the line; the head leads with
-            # the verb so re.match is fine.
             if re.match(rf"^{pat}\b", head, re.IGNORECASE):
                 tipo = t
                 break
         if tipo is None:
             continue
-        items.append({"tipo": tipo, "cantidad": cantidad, "unidad": "m2"})
+        # Normalise the captured unit token to the catalogue's canonical form.
+        raw_unit = (measure_match.group(2) or "").lower()
+        if raw_unit in ("m²", "m2"):
+            unidad = "m2"
+        elif raw_unit in ("m³", "m3"):
+            unidad = "m3"
+        elif raw_unit.startswith("ud") or raw_unit.startswith("unidad"):
+            unidad = "ud"
+        elif raw_unit == "kg":
+            unidad = "kg"
+        elif raw_unit == "m":
+            unidad = "m"
+        else:
+            unidad = "m2"
+        items.append({
+            "tipo": tipo, "cantidad": cantidad_final, "unidad": unidad,
+            "cantidad_bruta": cantidad, "deduccion_huecos": round(deduccion, 2),
+        })
+    # Derived flags for regulatory rules (must be present on project-meta so
+    # the engine can filter on them). Computed from the parsed scope-items.
+    tipos = {it["tipo"] for it in items}
+    incluye_demoliciones = any(
+        t.startswith(("demolicion_", "excavacion_", "transporte_tierras",
+                       "levantado_", "picado_"))
+        for t in tipos
+    )
+    toca_envolvente = any(
+        t.startswith(("cubierta_", "cerramiento_", "mortero_monocapa",
+                       "aislamiento_", "impermeabilizacion_",
+                       "ventana_", "puerta_entrada"))
+        for t in tipos
+    )
+
     return {
         "meta": {
             "memoria": path.name,
             "suelo": suelo,
             "requiere_proyecto": requiere_proyecto,
             "uso": uso,
+            "uso_turistico": uso_turistico,
+            "incluye_demoliciones": incluye_demoliciones,
+            "toca_envolvente": toca_envolvente,
             "promotor": promotor,
             "emplazamiento": emplazamiento,
         },
@@ -353,6 +427,12 @@ def bind_prices_to_partidas(wm: engine.WorkingMemory, rules_spec: dict) -> None:
         counter += 1
         medicion = float(pp["medicion"])
         pu = float(price["precio_unitario"])
+        # Carry mo/mat/maq/indirectos forward so the cuadro de precios nº 2
+        # (descompuesto) can render without re-reading the catalogue.
+        mo  = float(price.get("mo")  or 0.0)
+        mat = float(price.get("mat") or 0.0)
+        maq = float(price.get("maq") or 0.0)
+        indir = float(price.get("indirectos_pct") or 0.0)
         wm.assert_fact("partida", {
             "code": f"P{counter:03d}",
             "capitulo": pp["capitulo"],
@@ -361,6 +441,8 @@ def bind_prices_to_partidas(wm: engine.WorkingMemory, rules_spec: dict) -> None:
             "medicion": medicion,
             "precio_unitario": pu,
             "importe": round(medicion * pu, 2),
+            "mo_pu": mo, "mat_pu": mat, "maq_pu": maq,
+            "indirectos_pct": indir,
             "price_ref": code,
             "scope_ref": pp.get("scope_ref"),
         }, produced_by="bind_prices_to_partidas")
@@ -547,6 +629,18 @@ def write_artefacts(out_dir: pathlib.Path,
         festivos=festivos, project_title=project_title,
     )
 
+    # Cuadros de precios — always emitted; complement the budget.
+    cuadros_precios.build_cuadro_nro1_pdf(
+        out_dir / "cuadro_precios_nro1.pdf",
+        firm=firm, meta=meta, partidas=partidas, ref=ref,
+        project_title=project_title,
+    )
+    cuadros_precios.build_cuadro_nro2_pdf(
+        out_dir / "cuadro_precios_nro2.pdf",
+        firm=firm, meta=meta, partidas=partidas, ref=ref,
+        project_title=project_title,
+    )
+
     # Mandatory regulatory annexes, only when a proyecto técnico applies
     # (LOE 38/1999 + LUIB 12/2017 art.146).
     if meta.get("requiere_proyecto"):
@@ -693,12 +787,15 @@ def run_for_memoria(memoria_path: pathlib.Path,
     parsed = parse_memoria(memoria_path)
 
     # One project-meta fact per memoria — regulatory rules fire off this,
-    # so we get one licencia/rústico/IVA flag per project, not per scope line.
+    # so we get one licencia/rústico/IVA/etc flag per project, not per scope line.
     wm.assert_fact("project-meta", {
         "memoria": parsed["meta"]["memoria"],
         "suelo": parsed["meta"]["suelo"],
         "requiere_proyecto": parsed["meta"]["requiere_proyecto"],
         "uso": parsed["meta"]["uso"],
+        "uso_turistico": parsed["meta"].get("uso_turistico", False),
+        "incluye_demoliciones": parsed["meta"].get("incluye_demoliciones", False),
+        "toca_envolvente": parsed["meta"].get("toca_envolvente", False),
     }, produced_by="ingesta_memoria")
 
     # Look up capítulo + canonical unidad from concepto_metadata so the runner
@@ -726,6 +823,13 @@ def run_for_memoria(memoria_path: pathlib.Path,
         }, produced_by="ingesta_memoria")
 
     for price in load_price_catalogue():
+        # Normalise numeric columns so partida facts inherit float values,
+        # not raw CSV strings.
+        for k in ("mo", "mat", "maq", "indirectos_pct"):
+            try:
+                price[k] = float(price.get(k) or 0.0)
+            except (TypeError, ValueError):
+                price[k] = 0.0
         wm.assert_fact("price", price, produced_by="ingesta_precios")
 
     eng.run()                       # regulatory rules fire

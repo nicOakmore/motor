@@ -162,6 +162,86 @@
           }
         }
       }
+    },
+    {
+      "name": "REG_ruido_municipal",
+      "family": "regulatory",
+      "salience": 55,
+      "_doc": "Cuando hay demoliciones o movimiento de tierras, recordar la ordenanza municipal de ruido del municipio.",
+      "when": {
+        "kind": "project-meta",
+        "filters": { "incluye_demoliciones": true }
+      },
+      "then": {
+        "assert": {
+          "kind": "flag",
+          "data": {
+            "nivel": "INFO",
+            "codigo": "RUIDO_MUNICIPAL",
+            "mensaje": "La obra incluye demoliciones y/o movimiento de tierras: aplica la ordenanza municipal de ruido del municipio (horario lectivo habitual L-V 8:00-20:00, S 9:00-14:00; verificar excepciones locales)."
+          }
+        }
+      }
+    },
+    {
+      "name": "REG_accesibilidad_SUA",
+      "family": "regulatory",
+      "salience": 55,
+      "_doc": "Si la obra requiere proyecto técnico, recordar la exigencia del CTE-DB-SUA (seguridad de utilización y accesibilidad).",
+      "when": {
+        "kind": "project-meta",
+        "filters": { "requiere_proyecto": true }
+      },
+      "then": {
+        "assert": {
+          "kind": "flag",
+          "data": {
+            "nivel": "WARN",
+            "codigo": "ACCESIBILIDAD_SUA",
+            "mensaje": "Verificar cumplimiento del CTE-DB-SUA: itinerarios accesibles, plazas y aseos cuando aplique. Para reformas en vivienda existente revisar excepciones del DB-SUA y la normativa autonómica."
+          }
+        }
+      }
+    },
+    {
+      "name": "REG_eficiencia_energetica_HE",
+      "family": "regulatory",
+      "salience": 55,
+      "_doc": "Intervenciones sobre cubierta, fachada o carpintería exterior requieren cumplir el CTE-DB-HE (eficiencia energética).",
+      "when": {
+        "kind": "project-meta",
+        "filters": { "toca_envolvente": true }
+      },
+      "then": {
+        "assert": {
+          "kind": "flag",
+          "data": {
+            "nivel": "WARN",
+            "codigo": "EFICIENCIA_HE",
+            "mensaje": "La intervención afecta a la envolvente térmica (cubierta, fachada o carpintería exterior). Verificar el CTE-DB-HE: limitación de demanda, transmitancias U máximas y certificación energética actualizada."
+          }
+        }
+      }
+    },
+    {
+      "name": "REG_uso_turistico_ibiza",
+      "family": "regulatory",
+      "salience": 70,
+      "_doc": "Uso turístico en Baleares — Ley 8/2012 + Decreto 20/2015 (ETV) + moratorias por isla. Alto riesgo de no autorización en zonas saturadas de Ibiza.",
+      "when": {
+        "kind": "project-meta",
+        "filters": { "uso_turistico": true }
+      },
+      "then": {
+        "assert": {
+          "kind": "flag",
+          "data": {
+            "nivel": "STOP",
+            "codigo": "USO_TURISTICO_IBIZA",
+            "mensaje": "Uso turístico / vacacional detectado en la memoria. Verificar la Ley 8/2012 del turismo de Baleares, el Decreto 20/2015 (ETV) y las moratorias por isla / municipio. En Ibiza muchas zonas no admiten nuevas comercializaciones turísticas; no presupuestar como obra de adecuación a uso turístico sin confirmar el régimen aplicable."
+          }
+        }
+      }
     }
   ],
   "concepto_metadata": {

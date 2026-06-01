@@ -143,12 +143,15 @@ def build() -> pathlib.Path:
     story.append(Paragraph("Salvaguardas regulatorias en Ibiza", h2))
     story.append(Paragraph(
         "El motor levanta <b>banderas</b>, nunca decide legalidad. "
-        "<b>WARN LICENCIA_PREVIA</b> si la obra requiere proyecto técnico "
-        "(LOE 38/1999 → licencia previa por LUIB art. 146 con anexos ESS "
-        "RD 1627/1997, RCD RD 105/2008, control de calidad CTE y plan de obra). "
-        "<b>STOP RUSTICO_REVISAR</b> en suelo rústico (Ley 7/2024): el sistema "
-        "no presupuesta sin validación técnica previa. "
-        "<b>INFO IVA_REDUCIDO_10</b> al aplicar el 10% por vivienda habitual.",
+        "<b>STOP RUSTICO_REVISAR</b> en suelo rústico (Ley 7/2024). "
+        "<b>STOP USO_TURISTICO_IBIZA</b> si la memoria menciona uso turístico "
+        "/ ETV (Ley 8/2012, Decreto 20/2015, moratorias municipales). "
+        "<b>WARN LICENCIA_PREVIA</b> si requiere proyecto técnico (LOE 38/1999 "
+        "→ LUIB art. 146 + anexos ESS, RCD, control de calidad CTE y plan de obra). "
+        "<b>WARN ACCESIBILIDAD_SUA</b> (CTE-DB-SUA) y <b>WARN EFICIENCIA_HE</b> "
+        "(CTE-DB-HE, cuando toca envolvente). <b>INFO RUIDO_MUNICIPAL</b> con "
+        "demoliciones o movimiento de tierras. <b>INFO IVA_REDUCIDO_10</b> "
+        "al aplicar el 10% por vivienda habitual.",
         body,
     ))
 
@@ -159,7 +162,7 @@ def build() -> pathlib.Path:
         ("3", "El motor genera el presupuesto, las partidas por capítulo, el plan de obra con fechas reales (excluye fines de semana y festivos de Baleares) y las banderas regulatorias."),
         ("4", "<b>Editar partidas en el navegador</b> (medición, precio, IVA por partida, añadir/eliminar desde el catálogo de 111 partidas, sobrescribir GG/BI/IVA/retención IRPF/recargo de equivalencia). Recalcula y regenera los PDFs al instante."),
         ("5", "Si la obra requiere proyecto técnico se generan además los <b>anexos regulatorios</b>: pliego de condiciones, ESS (RD 1627/1997), plan de RCD (RD 105/2008) y plan de control de calidad CTE."),
-        ("6", "Descargar los entregables: <b>Presupuesto cliente</b> + <b>Plan de obra</b> (cabecera Rex Construcciones), los anexos cuando aplican, plan_acopios.csv, flags.md, presupuesto.bc3 y la traza."),
+        ("6", "Descargar los entregables: <b>Presupuesto cliente</b> + <b>Plan de obra</b> + <b>Cuadro de Precios Nº 1 y Nº 2</b> (descompuesto mo/mat/maq), los anexos regulatorios cuando aplican, plan_acopios.csv, flags.md, presupuesto.bc3 y la traza."),
         ("7", "Trazar cualquier euro: traza.md → partida → price_ref + scope_ref + regla que lo produjo."),
     ]
     workflow_data = [[Paragraph(n, cell_sb), Paragraph(t, cell_s)] for n, t in wf_rows]

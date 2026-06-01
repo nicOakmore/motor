@@ -40,6 +40,25 @@
 </section>
 {% endif %}
 
+{% set cuadro_files = [
+  ('cuadro_precios_nro1.pdf', 'Cuadro de Precios Nº 1'),
+  ('cuadro_precios_nro2.pdf', 'Cuadro de Precios Nº 2 (descompuesto)'),
+] %}
+{% set cuadro_present = cuadro_files | selectattr(0, 'in', artefacts) | list %}
+{% if cuadro_present %}
+<section class="card client-cta">
+  <h2>Cuadros de precios</h2>
+  <div class="cta-row">
+    {% for f, label in cuadro_present %}
+      <a class="cta-tile" style="background:linear-gradient(135deg,#2d5d8d,#3a78b3)" href="{{ url_for('download', job_id=job_id, filename=f) }}">
+        <span class="cta-label">{{ label }}</span>
+        <span class="cta-meta">{{ f }}</span>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% set annex_files = [
   ('pliego_condiciones.pdf',       'Pliego de condiciones'),
   ('estudio_seguridad_salud.pdf',  'Estudio de Seguridad y Salud'),
