@@ -1,169 +1,4 @@
 {
-  "_comment": "KNOWLEDGE BASE. Authored and edited offline. The deterministic engine fires these at runtime. No euro figures here — prices come from the catalogue. Percentages are RD 1098/2001 reference values, overridable per project.",
-  "parameters": {
-    "gg_pct": 0.13,
-    "bi_pct": 0.06,
-    "iva_pct": 0.1,
-    "icio_pct": 0.029,
-    "retencion_irpf_pct": 0.0,
-    "recargo_equivalencia_pct": 0.0,
-    "municipio": "Santa Eulària des Riu",
-    "uso": "vivienda_habitual",
-    "ambito_precios_prioridad": [
-      "local",
-      "Balears",
-      "Ibiza",
-      "BEDEC",
-      "CYPE",
-      "web"
-    ]
-  },
-  "firm": {
-    "_doc": "Letterhead used in every client-facing artefact. Edit here, not in code.",
-    "nombre": "Rex Construcciones",
-    "direccion": "CL ALCALDE ANTONIO GUASCH 3 BAJOS",
-    "cp_ciudad": "07800 IBIZA",
-    "cif": "B-57.276.677",
-    "telefono": "971 394 320",
-    "email": "administracion@rexconstrucciones.com",
-    "ref_prefix": "PRESUPUESTO",
-    "ref_series": "2026"
-  },
-  "festivos": {
-    "_doc": "Non-working days (yyyy-mm-dd) for plan-de-obra calendar arithmetic. Spain + Baleares 2026-2027.",
-    "dias": [
-      "2026-01-01",
-      "2026-01-06",
-      "2026-03-01",
-      "2026-04-03",
-      "2026-05-01",
-      "2026-08-15",
-      "2026-10-12",
-      "2026-11-01",
-      "2026-12-06",
-      "2026-12-08",
-      "2026-12-25",
-      "2027-01-01",
-      "2027-01-06",
-      "2027-03-01",
-      "2027-03-26",
-      "2027-05-01",
-      "2027-08-15",
-      "2027-10-12",
-      "2027-11-01",
-      "2027-12-06",
-      "2027-12-08",
-      "2027-12-25"
-    ]
-  },
-  "capitulo_orden": [
-    "Demoliciones",
-    "Movimiento de tierras",
-    "Cimentación",
-    "Estructura",
-    "Cubiertas",
-    "Albañilería",
-    "Aislamientos e impermeabilizaciones",
-    "Revestimientos",
-    "Pavimentos",
-    "Carpintería interior",
-    "Carpintería exterior",
-    "Pintura",
-    "Fontanería",
-    "Saneamiento",
-    "Electricidad",
-    "Climatización",
-    "Urbanización y exteriores"
-  ],
-  "duracion_capitulo_dias": {
-    "_doc": "Reference work-plan durations per chapter (working days). Engine treats these as defaults; a real project overrides via project-param.",
-    "Demoliciones": 3,
-    "Movimiento de tierras": 4,
-    "Cimentación": 6,
-    "Estructura": 10,
-    "Cubiertas": 7,
-    "Albañilería": 7,
-    "Aislamientos e impermeabilizaciones": 4,
-    "Revestimientos": 5,
-    "Pavimentos": 4,
-    "Carpintería interior": 3,
-    "Carpintería exterior": 3,
-    "Pintura": 5,
-    "Fontanería": 5,
-    "Saneamiento": 4,
-    "Electricidad": 5,
-    "Climatización": 3,
-    "Urbanización y exteriores": 5
-  },
-  "rules": [
-    {
-      "name": "REG_licencia_requerida",
-      "family": "regulatory",
-      "salience": 60,
-      "_doc": "LUIB 12/2017 art.146 + LOE 38/1999: a work that needs a technical project requires prior municipal licence.",
-      "when": {
-        "kind": "project-meta",
-        "filters": {
-          "requiere_proyecto": true
-        }
-      },
-      "then": {
-        "assert": {
-          "kind": "flag",
-          "data": {
-            "nivel": "WARN",
-            "codigo": "LICENCIA_PREVIA",
-            "mensaje": "Obra sujeta a licencia urbanística municipal previa (LUIB art.146). Anexos obligatorios: Estudio de Seguridad y Salud (RD 1627/1997), Plan de gestión de RCD (RD 105/2008), Plan de control de calidad CTE y plan de obra."
-          }
-        }
-      }
-    },
-    {
-      "name": "REG_rustico_riesgo",
-      "family": "regulatory",
-      "salience": 60,
-      "_doc": "Rural land in Ibiza is high-risk. The rule only raises a flag; it never asserts legality.",
-      "when": {
-        "kind": "project-meta",
-        "filters": {
-          "suelo": "rustico"
-        }
-      },
-      "then": {
-        "assert": {
-          "kind": "flag",
-          "data": {
-            "nivel": "STOP",
-            "codigo": "RUSTICO_REVISAR",
-            "mensaje": "Suelo rústico en Ibiza: requiere revisión técnica/jurídica previa (Ley 7/2024, regímenes de legalización). No presupuestar sin verificar el régimen aplicable."
-          }
-        }
-      }
-    },
-    {
-      "name": "REG_iva_reducido",
-      "family": "regulatory",
-      "salience": 50,
-      "_doc": "Reduced 10% IVA only applies to primary residence (Ley 37/1992 art.91.uno.2). Remind the technician to verify eligibility.",
-      "when": {
-        "kind": "project-param",
-        "filters": {
-          "clave": "uso",
-          "valor": "vivienda_habitual"
-        }
-      },
-      "then": {
-        "assert": {
-          "kind": "flag",
-          "data": {
-            "nivel": "INFO",
-            "codigo": "IVA_REDUCIDO_10",
-            "mensaje": "IVA reducido del 10% aplicado por uso vivienda habitual (Ley 37/1992 art.91.uno.2). Verificar que el proyecto cumple los requisitos."
-          }
-        }
-      }
-    }
-  ],
   "concepto_metadata": {
     "demolicion_tabique_lhd": {
       "capitulo": "Demoliciones",
@@ -831,5 +666,24 @@
       "unidad": "ud",
       "descripcion_corta": "Plantación de arbusto mediterráneo"
     }
-  }
+  },
+  "capitulo_orden": [
+    "Demoliciones",
+    "Movimiento de tierras",
+    "Cimentación",
+    "Estructura",
+    "Cubiertas",
+    "Albañilería",
+    "Aislamientos e impermeabilizaciones",
+    "Revestimientos",
+    "Pavimentos",
+    "Carpintería interior",
+    "Carpintería exterior",
+    "Pintura",
+    "Fontanería",
+    "Saneamiento",
+    "Electricidad",
+    "Climatización",
+    "Urbanización y exteriores"
+  ]
 }

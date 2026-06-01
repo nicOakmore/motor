@@ -58,16 +58,147 @@ SALIDAS = ROOT / "salidas"
 # that recognises the line items in the sample memorias the firm dropped.
 # --------------------------------------------------------------------------
 
-# Scope verbs: the opening word of a numbered item determines its tipo.
+# Scope verbs: the opening word(s) of a numbered item determine the tipo.
 # Tested in order — first match wins, so put more specific verbs first.
-SCOPE_VERBS: list[tuple[str, str, str, str]] = [
-    # (regex on item-leading word(s), tipo, capítulo, unidad)
-    (r"demolici[oó]n", "demolicion_tabique", "Demoliciones", "m2"),
-    (r"(?:ejecuci[oó]n\s+de\s+)?(?:nuevo\s+)?tabiquer[ií]a", "tabique", "Albañilería", "m2"),
-    (r"(?:ejecuci[oó]n\s+de\s+)?(?:nuevo\s+)?tabique", "tabique", "Albañilería", "m2"),
-    (r"enlucido", "enlucido", "Revestimientos", "m2"),
-    (r"pintura", "pintura", "Pintura", "m2"),
-    (r"solado", "solado_porcelanico", "Pavimentos", "m2"),
+# Each tipo must exist in rules.json:concepto_metadata or the runner flags it.
+SCOPE_VERBS: list[tuple[str, str]] = [
+    # Demoliciones / actuaciones previas
+    # Match against the whole item body, not only the head — anchors come
+    # later in the routing logic. Default tabique demolition to LHD (the
+    # conservative/expensive choice); LH7 only if explicitly stated.
+    (r"demolici[oó]n\s+de\s+tabique\s+(?:de\s+)?(?:ladrillo\s+)?hueco\s+simple|demolici[oó]n\s+de\s+tabique\s+LH7", "demolicion_tabique_lh7"),
+    (r"demolici[oó]n\s+de\s+tabique", "demolicion_tabique_lhd"),
+    (r"demolici[oó]n\s+de\s+muro", "demolicion_muro_fabrica"),
+    (r"levantado\s+de\s+solado|levantado\s+de\s+pavimento", "levantado_solado"),
+    (r"levantado\s+de\s+alicatado|retirada\s+de\s+alicatado", "levantado_alicatado"),
+    (r"desmontaje\s+de\s+carpinter[ií]a", "desmontaje_carpinteria"),
+    (r"picado\s+(?:de\s+)?(?:enlucido|yeso)", "picado_enlucido"),
+    (r"apertura\s+de\s+hueco", "apertura_hueco_tabique"),
+
+    # Movimiento de tierras
+    (r"excavaci[oó]n\s+(?:a\s+cielo\s+abierto|en\s+terreno)", "excavacion_cielo_abierto"),
+    (r"excavaci[oó]n\s+(?:de\s+)?zanjas?", "excavacion_zanjas"),
+    (r"relleno\s+(?:de\s+)?tierras?", "relleno_tierras"),
+    (r"transporte\s+(?:de\s+)?tierras?|retirada\s+de\s+tierras", "transporte_tierras"),
+
+    # Cimentación
+    (r"horm?ig[oó]n\s+de\s+limpieza", "hormigon_limpieza"),
+    (r"horm?ig[oó]n\s+armado\s+en\s+zapatas?", "hormigon_zapatas"),
+    (r"horm?ig[oó]n\s+armado\s+en\s+losa", "hormigon_losa"),
+    (r"solera\s+de\s+horm?ig[oó]n", "solera_hormigon"),
+    (r"encofrado", "encofrado_muros"),
+    (r"acero\s+(?:corrugado|B500)", "acero_corrugado"),
+
+    # Estructura
+    (r"forjado", "forjado_unidireccional"),
+    (r"losa\s+maciza", "losa_maciza"),
+    (r"pilar(?:es)?\s+(?:de\s+)?horm?ig[oó]n|horm?ig[oó]n\s+armado\s+en\s+pilares", "hormigon_pilares"),
+    (r"viga\s+(?:de\s+)?horm?ig[oó]n", "viga_hormigon"),
+    (r"acero\s+estructural|perfil(?:es)?\s+laminados?", "acero_estructural"),
+    (r"escalera\s+(?:de\s+)?horm?ig[oó]n", "escalera_hormigon"),
+    (r"refuerzo\s+(?:de\s+)?viga", "refuerzo_viga"),
+
+    # Cubiertas
+    (r"cubierta\s+plana\s+transitable", "cubierta_plana_transitable"),
+    (r"cubierta\s+plana", "cubierta_plana_no_transitable"),
+    (r"cubierta\s+(?:de\s+)?teja|cubierta\s+inclinada", "cubierta_teja_arabe"),
+    (r"impermeabilizaci[oó]n\s+(?:con\s+)?(?:l[aá]mina\s+)?EPDM", "impermeabilizacion_epdm"),
+    (r"canal[oó]n", "canalon_aluminio"),
+    (r"bajante", "bajante_pvc"),
+
+    # Albañilería (tabiques nuevos)
+    (r"(?:ejecuci[oó]n\s+de\s+)?(?:nuevo\s+)?(?:tabique|tabiquer[ií]a)\s+(?:de\s+)?(?:placa\s+de\s+)?yeso\s+laminado|(?:tabique|tabiquer[ií]a)\s+pyl", "tabique_pyl"),
+    (r"trasdosado", "trasdosado_pyl"),
+    (r"(?:ejecuci[oó]n\s+de\s+)?(?:nuevo\s+)?tabique\s+(?:de\s+)?(?:ladrillo\s+)?hueco\s+(?:del\s+)?9|tabique\s+LH9", "tabique_lh9"),
+    (r"(?:ejecuci[oó]n\s+de\s+)?(?:nuevo\s+)?tabique(?:r[ií]a)?", "tabique_lh7"),
+    (r"cerramiento\s+(?:de\s+)?bloque", "cerramiento_bloque"),
+    (r"cerramiento\s+(?:de\s+)?f[aá]brica", "cerramiento_fabrica_doble"),
+    (r"albardilla", "albardilla_hormigon"),
+
+    # Aislamientos / impermeabilizaciones
+    (r"aislamiento\s+(?:t[eé]rmico\s+)?(?:de\s+)?xps", "aislamiento_xps"),
+    (r"aislamiento\s+(?:de\s+)?lana\s+mineral", "aislamiento_lana_mineral"),
+    (r"aislamiento\s+(?:de\s+)?poliuretano", "aislamiento_pur_proyectado"),
+    (r"aislamiento(?:\s+t[eé]rmico)?", "aislamiento_lana_mineral"),
+    (r"impermeabilizaci[oó]n\s+(?:con\s+)?l[aá]minas?\s+asf[aá]lticas?", "impermeabilizacion_sbs"),
+    (r"impermeabilizaci[oó]n", "impermeabilizacion_sbs"),
+
+    # Revestimientos
+    (r"enlucido(?:\s+(?:de\s+)?yeso)?", "enlucido_yeso"),
+    (r"guarnecido", "guarnecido_enlucido"),
+    (r"mortero\s+monocapa", "mortero_monocapa"),
+    (r"estuco", "estuco_veneciano"),
+    (r"alicatado\s+(?:de\s+)?(?:azulejo|cer[aá]mico)", "alicatado_azulejo"),
+    (r"alicatado(?:\s+(?:de\s+)?(?:gres\s+)?porcel[aá]nico)?", "alicatado_porcelanico"),
+    (r"rodapi[eé]\s+(?:de\s+)?(?:madera|dm)", "rodapie_madera"),
+    (r"rodapi[eé]", "rodapie_porcelanico"),
+    (r"falso\s+techo\s+(?:continuo|de\s+pyl)", "falso_techo_continuo"),
+    (r"falso\s+techo", "falso_techo_registrable"),
+
+    # Pavimentos
+    (r"solado\s+(?:de\s+)?(?:gres\s+)?porcel[aá]nico\s+80", "solado_porcelanico_80"),
+    (r"solado\s+(?:de\s+)?(?:gres\s+)?porcel[aá]nico", "solado_porcelanico_60"),
+    (r"tarima\s+(?:maciza|de\s+roble)", "tarima_maciza_roble"),
+    (r"tarima(?:\s+(?:flotante|laminada))?", "tarima_laminada"),
+    (r"microcemento", "microcemento"),
+    (r"recrecido", "recrecido_mortero"),
+    (r"baldosa\s+hidr[aá]ulica", "baldosa_hidraulica"),
+    (r"solado", "solado_porcelanico_60"),
+
+    # Carpintería
+    (r"puerta\s+(?:de\s+)?entrada|puerta\s+acorazada", "puerta_entrada_acorazada"),
+    (r"puerta\s+corredera", "puerta_corredera_empotrada"),
+    (r"puerta\s+(?:doble\s+)?vidriera", "puerta_doble_vidriera"),
+    (r"puerta(?:\s+interior)?", "puerta_interior_lacada"),
+    (r"armario\s+empotrado", "armario_empotrado"),
+    (r"ventana\s+(?:de\s+)?pvc", "ventana_pvc"),
+    (r"ventana\s+corredera", "ventana_corredera_aluminio"),
+    (r"ventana(?:\s+(?:de\s+)?aluminio)?", "ventana_aluminio_rpt"),
+    (r"persiana", "persiana_pvc"),
+    (r"mosquitera", "mosquitera_aluminio"),
+    (r"encimera", "encimera_cocina_madera"),
+
+    # Pintura
+    (r"esmalte", "esmalte_sintetico"),
+    (r"barniz", "barniz_carpinteria"),
+    (r"pintura\s+(?:al\s+)?silicato|pintura\s+(?:de\s+)?fachada", "pintura_silicato_fachada"),
+    (r"pintura\s+(?:pl[aá]stica\s+)?satinada|pintura\s+lavable", "pintura_plastica_satinada"),
+    (r"pintura(?:\s+pl[aá]stica)?", "pintura_plastica_lisa"),
+
+    # Instalaciones
+    (r"punto\s+(?:de\s+)?luz\s+conmutado", "punto_luz_conmutado"),
+    (r"punto\s+(?:de\s+)?luz", "punto_luz_simple"),
+    (r"punto\s+(?:de\s+)?enchufe\s+25", "punto_enchufe_25a"),
+    (r"punto\s+(?:de\s+)?enchufe", "punto_enchufe_16a"),
+    (r"cuadro\s+(?:el[eé]ctrico|general)", "cuadro_general"),
+    (r"punto\s+(?:de\s+)?tv|punto\s+(?:de\s+)?datos|rj45", "punto_tv_datos"),
+    (r"canalizaci[oó]n", "canalizacion_corrugado"),
+
+    (r"punto\s+(?:de\s+)?fontaner[ií]a\s+(?:para\s+)?(?:cocina|lavavajillas)", "punto_cocina"),
+    (r"punto\s+(?:de\s+)?fontaner[ií]a\s+(?:para\s+)?ducha", "punto_ducha"),
+    (r"punto\s+(?:de\s+)?fontaner[ií]a\s+(?:para\s+)?inodoro", "punto_inodoro"),
+    (r"punto\s+(?:de\s+)?fontaner[ií]a", "punto_lavabo"),
+    (r"lavabo", "lavabo_porcelana"),
+    (r"inodoro", "inodoro_porcelana"),
+    (r"plato\s+(?:de\s+)?ducha|ducha\s+(?:con\s+)?grifer[ií]a", "plato_ducha"),
+
+    (r"red\s+(?:de\s+)?saneamiento\s+horizontal|saneamiento\s+horizontal", "saneamiento_horizontal_110"),
+    (r"red\s+(?:de\s+)?saneamiento\s+vertical|saneamiento\s+vertical", "saneamiento_vertical_110"),
+    (r"arqueta", "arqueta_paso"),
+    (r"sumidero", "sumidero_terraza"),
+
+    (r"split\s+(?:inverter\s+)?4500|split.*4\.?500", "split_inverter_4500"),
+    (r"split", "split_inverter_2500"),
+    (r"aerotermia", "aerotermia_bibloque"),
+    (r"suelo\s+radiante", "suelo_radiante"),
+    (r"extracci[oó]n\s+(?:de\s+)?ba[nñ]o|extractor\s+ba[nñ]o", "extraccion_bano"),
+
+    # Urbanización
+    (r"pavimento\s+(?:de\s+)?horm?ig[oó]n", "pavimento_hormigon_fratasado"),
+    (r"bordillo", "bordillo_hormigon"),
+    (r"adoqu[ií]n", "pavimento_adoquin"),
+    (r"c[eé]sped", "cesped_artificial"),
+    (r"plantaci[oó]n", "plantacion_arbusto"),
 ]
 
 # Captures the measurement at the end of an item line: "...: **80 m²**" or "...: 80 m²".
@@ -109,24 +240,25 @@ def parse_memoria(path: pathlib.Path) -> dict:
 
     items = []
     for body in ITEM_RE.findall(text):
-        # leading word(s) decide the tipo — strip markdown emphasis first
-        head = re.sub(r"[*_`]", "", body).strip().lower()
+        # strip markdown emphasis; whole-body search so qualifiers that follow
+        # the measurement (e.g. "12 m² de tabique de ladrillo hueco doble")
+        # still influence routing.
+        body_clean = re.sub(r"[*_`]", " ", body).strip()
+        head = body_clean.lower()
         measure_match = MEASURE_RE.search(body)
         if measure_match is None:
             continue
         cantidad = float(measure_match.group(1).replace(",", "."))
-        matched = None
-        for pat, tipo, capitulo, unidad in SCOPE_VERBS:
+        tipo = None
+        for pat, t in SCOPE_VERBS:
+            # match anywhere from the start of the line; the head leads with
+            # the verb so re.match is fine.
             if re.match(rf"^{pat}\b", head, re.IGNORECASE):
-                matched = (tipo, capitulo, unidad)
+                tipo = t
                 break
-        if matched is None:
+        if tipo is None:
             continue
-        tipo, capitulo, unidad = matched
-        items.append({
-            "tipo": tipo, "capitulo": capitulo,
-            "cantidad": cantidad, "unidad": unidad,
-        })
+        items.append({"tipo": tipo, "cantidad": cantidad, "unidad": "m2"})
     return {
         "meta": {
             "memoria": path.name,
@@ -173,7 +305,14 @@ def load_material_lines() -> list[dict]:
 def bind_prices_to_partidas(wm: engine.WorkingMemory, rules_spec: dict) -> None:
     """For every `partida-pendiente`, find the price by concept→code map and
     the ámbito priority, then assert a fully-priced `partida` fact."""
-    concept_to_code = rules_spec.get("concepto_to_price", {})
+    # Prefer the rich concepto_metadata table (which has unidad + capítulo too);
+    # fall back to legacy concepto_to_price for backward compatibility.
+    metadata = rules_spec.get("concepto_metadata", {})
+    concept_to_code = {k: v["price_code"] for k, v in metadata.items()
+                       if isinstance(v, dict) and v.get("price_code")}
+    for k, v in rules_spec.get("concepto_to_price", {}).items():
+        if not k.startswith("_"):
+            concept_to_code.setdefault(k, v)
     priority = (rules_spec.get("parameters", {})
                           .get("ambito_precios_prioridad", ["local"]))
 
@@ -374,20 +513,34 @@ def run_for_memoria(memoria_path: pathlib.Path,
         "uso": parsed["meta"]["uso"],
     }, produced_by="ingesta_memoria")
 
+    # Look up capítulo + canonical unidad from concepto_metadata so the runner
+    # is the single bridge between scope items and partidas (no per-tipo MAP
+    # rules to maintain — adding a new partida = 1 catalogue row + 1 metadata
+    # entry, both generated by catalogue_seed.py).
+    metadata = rules_spec.get("concepto_metadata", {})
     for i, item in enumerate(parsed["items"], start=1):
+        meta_entry = metadata.get(item["tipo"], {})
         wm.assert_fact("scope-item", {
             "id": f"S{i:03d}",
-            "descripcion": item["tipo"],
+            "descripcion": meta_entry.get("descripcion_corta", item["tipo"]),
             "tipo": item["tipo"],
-            "capitulo": item["capitulo"],
+            "capitulo": meta_entry.get("capitulo", "Sin capítulo"),
             "cantidad": item["cantidad"],
-            "unidad": item["unidad"],
+            "unidad": meta_entry.get("unidad", item["unidad"]),
+        }, produced_by="ingesta_memoria")
+        # Emit the partida-pendiente directly — no MAP_ rule needed.
+        wm.assert_fact("partida-pendiente", {
+            "capitulo": meta_entry.get("capitulo", "Sin capítulo"),
+            "concepto": item["tipo"],
+            "medicion": item["cantidad"],
+            "unidad": meta_entry.get("unidad", item["unidad"]),
+            "scope_ref": f"S{i:03d}",
         }, produced_by="ingesta_memoria")
 
     for price in load_price_catalogue():
         wm.assert_fact("price", price, produced_by="ingesta_precios")
 
-    eng.run()                       # mapping + regulatory rules fire
+    eng.run()                       # regulatory rules fire
     bind_prices_to_partidas(wm, rules_spec)
     explode_material_lines(wm, load_material_lines())
     eng.run()                       # any rule that depends on `partida`
@@ -422,24 +575,29 @@ def run_for_memoria(memoria_path: pathlib.Path,
                              programa="MotorPresupuestos")
     (out_dir / "presupuesto.bc3").write_text(bc3_text, encoding="latin-1")
 
-    # Client-facing PDFs. Reference is a short hash of memoria stem + first
-    # partida importe — deterministic + readable, no PII.
-    import hashlib
-    ref = hashlib.sha1(
-        f"{memoria_path.stem}-{totales['PEM']:.2f}".encode("utf-8")
-    ).hexdigest()[:8].upper()
-    duraciones = rules_spec.get("duracion_capitulo_dias", {})
-    duraciones = {k: v for k, v in duraciones.items() if not k.startswith("_")}
+    # Client-facing PDFs. Reference looks like REX's internal numbering:
+    # <ref_series>.<short hash>, e.g. 2026.1CEA635D.
+    import hashlib, datetime as _dt
+    h = hashlib.sha1(f"{memoria_path.stem}-{totales['PEM']:.2f}".encode("utf-8")
+                     ).hexdigest()[:6].upper()
+    ref = f"{rules_spec.get('firm',{}).get('ref_series', _dt.date.today().year)}.{h}"
+    firm = rules_spec.get("firm", {})
+    duraciones = {k: v for k, v in
+                  rules_spec.get("duracion_capitulo_dias", {}).items()
+                  if not k.startswith("_")}
     capitulos = rules_spec.get("capitulo_orden", [])
+    festivos_raw = rules_spec.get("festivos", {}).get("dias", [])
+    festivos = [_dt.date.fromisoformat(s) for s in festivos_raw]
     client_pdfs.build_presupuesto_pdf(
         out_dir / "presupuesto_cliente.pdf",
-        meta=parsed["meta"], totales=totales,
+        firm=firm, meta=parsed["meta"], totales=totales,
         partidas=partidas_out, capitulo_orden=capitulos, ref=ref,
     )
     client_pdfs.build_plan_obra_pdf(
         out_dir / "plan_de_obra.pdf",
-        meta=parsed["meta"], partidas=partidas_out,
+        firm=firm, meta=parsed["meta"], partidas=partidas_out,
         duracion_dias=duraciones, capitulo_orden=capitulos, ref=ref,
+        festivos=festivos,
     )
 
     if verbose:

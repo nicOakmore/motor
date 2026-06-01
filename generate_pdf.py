@@ -58,15 +58,19 @@ def build() -> pathlib.Path:
         "Sistema de reglas que transforma una <b>memoria constructiva</b> en un "
         "presupuesto trazable conforme a la normativa española (RD 1098/2001, "
         "Ley 37/1992) y al régimen urbanístico de Ibiza/Baleares (LUIB 12/2017). "
-        "Cada euro del presupuesto se justifica con una regla, un precio y una "
-        "línea del alcance: si no se puede trazar, el sistema no lo emite.",
+        "Cada euro se justifica con una regla, un precio y una línea del alcance: "
+        "si no se puede trazar, el sistema no lo emite.",
         body,
     ))
     story.append(Paragraph(
-        "<b>Demo en vivo:</b> "
+        "<b>Demo en vivo (acceso restringido):</b> "
         "<font color='#1a3a5c'>https://motor-presupuestos.onrender.com</font> — "
-        "sube una memoria o usa una de muestra y descarga el presupuesto, el "
-        "plan de acopios, el checklist regulatorio y la exportación BC3.",
+        "sube una memoria o elige una de muestra. La página requiere usuario y "
+        "contraseña y bloquea a los buscadores (robots.txt + meta noindex + "
+        "X-Robots-Tag). El catálogo de partidas y los precios viven en "
+        "<font face='Helvetica-Oblique'>rules.json</font> + "
+        "<font face='Helvetica-Oblique'>precios/</font>; el motor sólo lee, "
+        "nunca escribe.",
         body,
     ))
 
@@ -116,8 +120,10 @@ def build() -> pathlib.Path:
         ("GG", "Gastos Generales", "13% · PEM"),
         ("BI", "Beneficio Industrial", "6% · PEM"),
         ("PEC", "Presupuesto de Ejecución por Contrata", "PEM + GG + BI"),
-        ("IVA", "Impuesto sobre el Valor Añadido", "10% vivienda habitual (Ley 37/1992 art.91); 21% resto"),
-        ("TOTAL", "Importe a facturar al promotor", "PEC × (1 + IVA)"),
+        ("IVA", "Impuesto sobre el Valor Añadido", "10% vivienda habitual (Ley 37/1992); 21% resto; mixto por partida si procede"),
+        ("RET.", "Retención IRPF (autónomos)", "parámetro retencion_irpf_pct"),
+        ("R.E.", "Recargo de equivalencia (cuando aplica)", "parámetro recargo_equivalencia_pct"),
+        ("TOTAL", "Importe a facturar al promotor", "PEC + IVA − RET. + R.E."),
         ("ICIO", "Impuesto Construcciones (municipal)", "tipo municipal · PEM"),
     ]
     cell_s = ParagraphStyle("cell_s", parent=cell_t, fontSize=8.2, leading=9.8)
@@ -148,10 +154,10 @@ def build() -> pathlib.Path:
 
     story.append(Paragraph("Flujo de trabajo", h2))
     wf_rows = [
-        ("1", "Abrir <b>https://motor-presupuestos.onrender.com</b> en el navegador."),
+        ("1", "Acceder a <b>https://motor-presupuestos.onrender.com</b> con usuario y contraseña."),
         ("2", "Elegir una memoria de muestra o subir la propia (.md / .txt)."),
-        ("3", "El motor genera el presupuesto y muestra el cuadro resumen, las partidas por capítulo, el plan de acopios y las banderas regulatorias."),
-        ("4", "Descargar los artefactos: presupuesto.md / .json, plan_acopios.csv, flags.md, traza.md, presupuesto.bc3 (FIEBDC-3)."),
+        ("3", "El motor genera el presupuesto, las partidas por capítulo, el plan de obra con fechas reales (excluye fines de semana y festivos) y las banderas regulatorias."),
+        ("4", "Descargar los entregables: <b>Presupuesto cliente</b> (PDF con cabecera Rex Construcciones), <b>Plan de obra</b> (PDF con calendario y diagrama de barras), plan_acopios.csv, flags.md, presupuesto.bc3 (FIEBDC-3) y la traza completa."),
         ("5", "Trazar cualquier euro: traza.md → partida → price_ref + scope_ref + regla que lo produjo."),
     ]
     workflow_data = [[Paragraph(n, cell_sb), Paragraph(t, cell_s)] for n, t in wf_rows]

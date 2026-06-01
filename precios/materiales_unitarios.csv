@@ -1,6 +1,25 @@
 material_code,descripcion,unidad,cantidad_por_partida,partida_code,merma_pct
-MAT-LH7,"Ladrillo hueco del 7 (24x11.5x7 cm)",ud,40,PA-TAB-LH7,0.05
-MAT-MORT-COLA,"Mortero cola para gres porcelánico",kg,5,PA-SOL-PORC60,0.08
-MAT-YESO,"Yeso negro de obra YG en saco 25 kg",kg,11,PA-ENL-YESO,0.05
-MAT-PIN-PLAST,"Pintura plástica blanca interior, rendimiento ~0,2 kg/m²",kg,0.4,PA-PIN-PLAST,0.05
-MAT-PORC60,"Baldosa de gres porcelánico 60×60 cm, clase 4",m2,1.0,PA-SOL-PORC60,0.07
+MAT-LH7,Ladrillo hueco del 7 (24×11.5×7 cm),ud,40,PA-ALB-001,0.05
+MAT-LH9,Ladrillo hueco del 9 (24×11.5×9 cm),ud,32,PA-ALB-002,0.05
+MAT-PYL15,Placa de yeso laminado 15 mm 1.20×2.50,m2,2.0,PA-ALB-003,0.08
+MAT-YESO,Yeso negro de obra YG saco 25 kg,kg,11,PA-REV-001,0.05
+MAT-YESO-FINO,Yeso fino blanco saco 25 kg,kg,4,PA-REV-002,0.05
+MAT-MORT-COLA,Mortero cola para gres porcelánico,kg,5,PA-PAV-001,0.08
+MAT-MORT-COLA,Mortero cola para gres porcelánico,kg,5,PA-PAV-002,0.08
+MAT-PORC60,"Baldosa gres porcelánico 60×60 cm, clase 4",m2,1.0,PA-PAV-001,0.07
+MAT-PORC80,"Baldosa gres porcelánico 80×80 cm, rectif.",m2,1.0,PA-PAV-002,0.08
+MAT-AZULEJO,Azulejo cerámico 20×20 cm,m2,1.0,PA-REV-005,0.07
+MAT-PORC60REV,Baldosa porcelánica 60×30 rectificada,m2,1.0,PA-REV-006,0.07
+MAT-PIN-PLAST,"Pintura plástica blanca interior, ~0.2 kg/m²",kg,0.4,PA-PIN-001,0.05
+MAT-PIN-SAT,Pintura plástica satinada lavable,kg,0.4,PA-PIN-002,0.05
+MAT-HORMIGON25,Hormigón HA-25/B/20/IIa central,m3,1.0,PA-CIM-002,0.05
+MAT-HORMIGON25,Hormigón HA-25/B/20/IIa central,m3,1.0,PA-CIM-006,0.03
+MAT-MALLAZO,Mallazo electrosoldado 15×15×6,m2,1.05,PA-CIM-006,0.05
+MAT-ACERO-B500,Acero corrugado B500S,kg,1.0,PA-CIM-003,0.03
+MAT-TARIMA-LAM,Tarima flotante laminada AC4,m2,1.0,PA-PAV-003,0.06
+MAT-ROBLE-22,Tarima maciza roble 22 mm,m2,1.0,PA-PAV-004,0.08
+MAT-PUERTA-INT,Puerta interior lisa lacada (juego completo),ud,1.0,PA-CRI-001,0.0
+MAT-LAVABO,Lavabo porcelana mural,ud,1.0,PA-FON-005,0.0
+MAT-INODORO,Inodoro porcelana cisterna baja,ud,1.0,PA-FON-006,0.0
+MAT-PLATO-DUCHA,Plato de ducha 100×70 + grifería,ud,1.0,PA-FON-007,0.0
+MAT-SPLIT-2500,Split inverter 2.500 frig,ud,1.0,PA-CLI-001,0.0

@@ -1,6 +1,112 @@
 code,unidad,descripcion,mo,mat,maq,indirectos_pct,precio_unitario,ambito,fuente,fecha
-PA-DEM-LHD,m2,"Demolición de tabique de ladrillo hueco doble, retirada de escombros incluida",12.50,1.20,0.80,0.06,15.40,Ibiza,local,2026-04-01
-PA-TAB-LH7,m2,"Tabique de ladrillo hueco del 7 (LH7), recibido con mortero 1:6",13.80,7.40,0.00,0.06,22.50,Ibiza,local,2026-04-01
-PA-ENL-YESO,m2,"Enlucido de yeso a buena vista, 1,5 cm de espesor",5.60,2.80,0.00,0.06,9.00,Ibiza,local,2026-04-01
-PA-PIN-PLAST,m2,"Pintura plástica lisa, dos manos sobre paramento liso",4.10,2.30,0.00,0.06,6.80,Ibiza,local,2026-04-01
-PA-SOL-PORC60,m2,"Solado de gres porcelánico 60×60 sobre recrecido nivelado, rejuntado",18.20,21.60,1.20,0.06,43.20,Ibiza,local,2026-04-01
+PA-DEM-001,m2,"Demolición de tabique de ladrillo hueco doble, incluso retirada de escombros",11.62,0.73,2.18,0.06,15.40,Ibiza,synthetic-demo,2026-04-01
+PA-DEM-002,m2,Demolición de tabique de ladrillo hueco simple LH7,7.40,0.46,1.39,0.06,9.80,Ibiza,synthetic-demo,2026-04-01
+PA-DEM-003,m3,"Demolición de muro de fábrica de espesor > 15 cm, por medios manuales",49.06,3.06,9.20,0.06,65.00,Ibiza,synthetic-demo,2026-04-01
+PA-DEM-004,m2,"Levantado de solado existente (gres / baldosa hidráulica), preparación de soporte",8.60,0.54,1.61,0.06,11.40,Ibiza,synthetic-demo,2026-04-01
+PA-DEM-005,m2,"Levantado de alicatado, incluso preparación de paramento",6.94,0.44,1.30,0.06,9.20,Ibiza,synthetic-demo,2026-04-01
+PA-DEM-006,m2,"Desmontaje de carpintería de madera, recuperación de hueco",9.43,0.59,1.77,0.06,12.50,Ibiza,synthetic-demo,2026-04-01
+PA-DEM-007,m2,"Picado de enlucido o yeso, preparación de paramento para nuevo revestimiento",6.64,0.41,1.25,0.06,8.80,Ibiza,synthetic-demo,2026-04-01
+PA-DEM-008,ud,"Apertura de hueco en tabique LH, hasta 1 m², sin refuerzo estructural",66.42,4.15,12.45,0.06,88.00,Ibiza,synthetic-demo,2026-04-01
+PA-TER-001,m3,"Excavación a cielo abierto en terreno medio, medios mecánicos",4.69,0.67,8.04,0.06,14.20,Ibiza,synthetic-demo,2026-04-01
+PA-TER-002,m3,"Excavación de zanjas para cimentación, medios mecánicos",8.09,1.15,13.87,0.06,24.50,Ibiza,synthetic-demo,2026-04-01
+PA-TER-003,m3,Relleno con tierras propias compactadas por tongadas,2.58,0.36,4.42,0.06,7.80,Ibiza,synthetic-demo,2026-04-01
+PA-TER-004,m3,"Transporte de tierras a vertedero autorizado, distancia hasta 20 km",4.09,0.59,7.02,0.06,12.40,Ibiza,synthetic-demo,2026-04-01
+PA-CIM-001,m3,"Hormigón de limpieza HL-150/B/20, e=10 cm",18.39,44.16,11.04,0.06,78.00,Ibiza,synthetic-demo,2026-04-01
+PA-CIM-002,m3,Hormigón armado en zapatas HA-25/B/20/IIa,36.79,88.30,22.08,0.06,156.00,Ibiza,synthetic-demo,2026-04-01
+PA-CIM-003,kg,"Acero corrugado B500S colocado, incluso despuntes",0.34,0.82,0.21,0.06,1.45,Ibiza,synthetic-demo,2026-04-01
+PA-CIM-004,m3,Hormigón armado en losa de cimentación HA-30/B/20/IIa,41.27,99.07,24.76,0.06,175.00,Ibiza,synthetic-demo,2026-04-01
+PA-CIM-005,m2,"Encofrado plano para muros de cimentación, 2 puestas",5.31,12.74,3.18,0.06,22.50,Ibiza,synthetic-demo,2026-04-01
+PA-CIM-006,m2,"Solera de hormigón armado HA-25 e=15 cm, mallazo electrosoldado",10.02,24.07,6.01,0.06,42.50,Ibiza,synthetic-demo,2026-04-01
+PA-EST-001,m3,"Hormigón armado en pilares HA-25, incluso encofrado y armaduras",69.34,138.68,23.11,0.06,245.00,Ibiza,synthetic-demo,2026-04-01
+PA-EST-002,m2,Forjado unidireccional viguetas + bovedilla h=25 cm,24.91,49.81,8.30,0.06,88.00,Ibiza,synthetic-demo,2026-04-01
+PA-EST-003,m2,"Losa maciza de hormigón armado e=20 cm, HA-25",37.36,74.72,12.45,0.06,132.00,Ibiza,synthetic-demo,2026-04-01
+PA-EST-004,kg,"Acero estructural S275JR en perfiles laminados, colocado",0.82,1.65,0.27,0.06,2.90,Ibiza,synthetic-demo,2026-04-01
+PA-EST-005,m2,"Escalera de hormigón armado, encofrada in situ",46.70,93.39,15.57,0.06,165.00,Ibiza,synthetic-demo,2026-04-01
+PA-EST-006,ud,"Refuerzo metálico de viga existente, hasta 3 m de luz",107.55,215.09,35.85,0.06,380.00,Ibiza,synthetic-demo,2026-04-01
+PA-EST-007,m,"Viga de hormigón armado 30×30, HA-25, encofrado y armaduras",26.18,52.35,8.73,0.06,92.50,Ibiza,synthetic-demo,2026-04-01
+PA-EST-008,m2,Tabicado palomero para formación de pendientes en cubierta,10.19,20.37,3.40,0.06,36.00,Ibiza,synthetic-demo,2026-04-01
+PA-CUB-001,m2,"Cubierta plana invertida no transitable, acabado de grava",33.11,36.80,3.68,0.06,78.00,Ibiza,synthetic-demo,2026-04-01
+PA-CUB-002,m2,Cubierta plana transitable con pavimento de gres antideslizante,46.70,51.88,5.19,0.06,110.00,Ibiza,synthetic-demo,2026-04-01
+PA-CUB-003,m2,Cubierta inclinada de teja árabe sobre tablero hidrófugo,40.33,44.81,4.48,0.06,95.00,Ibiza,synthetic-demo,2026-04-01
+PA-CUB-004,m2,"Impermeabilización con lámina EPDM e=1.2 mm, soldada",9.55,10.62,1.06,0.06,22.50,Ibiza,synthetic-demo,2026-04-01
+PA-CUB-005,m,"Canalón visto de aluminio lacado, sección 125 mm",10.53,11.70,1.17,0.06,24.80,Ibiza,synthetic-demo,2026-04-01
+PA-CUB-006,m,"Bajante PVC Ø110 mm, fijaciones incluidas",7.81,8.68,0.87,0.06,18.40,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-001,m2,"Tabique de ladrillo hueco del 7 (LH7), recibido con mortero 1:6",11.68,8.49,1.06,0.06,22.50,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-002,m2,"Tabique de ladrillo hueco del 9 (LH9), recibido con mortero 1:6",13.90,10.12,1.26,0.06,26.80,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-003,m2,"Tabique de placa de yeso laminado, doble placa 15+15 mm con lana mineral",19.98,14.52,1.82,0.06,38.50,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-004,m2,Trasdosado autoportante PYL 15 mm + perfilería + lana mineral 50 mm,21.79,15.85,1.98,0.06,42.00,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-005,m2,Cerramiento de fábrica de doble hoja con cámara de aire,29.32,21.31,2.67,0.06,56.50,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-006,m2,"Cerramiento de bloque de hormigón 20×20×40, recibido con mortero",19.72,14.34,1.79,0.06,38.00,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-007,m,"Recibido de carpintería en hueco de fábrica, mortero de agarre",4.41,3.21,0.40,0.06,8.50,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-008,ud,Apertura de hueco con formación de dintel en fábrica existente,49.29,35.85,4.48,0.06,95.00,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-009,m2,Tabicón de ladrillo cerámico 11×11×25 cm,14.79,10.76,1.34,0.06,28.50,Ibiza,synthetic-demo,2026-04-01
+PA-ALB-010,m,"Albardilla de hormigón prefabricado, ancho 25 cm",11.41,8.30,1.04,0.06,22.00,Ibiza,synthetic-demo,2026-04-01
+PA-AIS-001,m2,"Aislamiento térmico XPS e=4 cm, encolado en trasdosados",5.44,6.64,0.00,0.06,12.80,Ibiza,synthetic-demo,2026-04-01
+PA-AIS-002,m2,Aislamiento de lana mineral 50 mm en cámaras de aire,3.99,4.88,0.00,0.06,9.40,Ibiza,synthetic-demo,2026-04-01
+PA-AIS-003,m2,Aislamiento de poliuretano proyectado e=3 cm en cubiertas,7.85,9.60,0.00,0.06,18.50,Ibiza,synthetic-demo,2026-04-01
+PA-AIS-004,m2,"Impermeabilización con láminas asfálticas SBS, doble capa",7.64,9.34,0.00,0.06,18.00,Ibiza,synthetic-demo,2026-04-01
+PA-AIS-005,m2,Membrana impermeabilizante de poliuretano líquido bicomponente,9.13,11.15,0.00,0.06,21.50,Ibiza,synthetic-demo,2026-04-01
+PA-REV-001,m2,"Enlucido de yeso a buena vista, 1.5 cm de espesor",4.67,3.57,0.25,0.06,9.00,Ibiza,synthetic-demo,2026-04-01
+PA-REV-002,m2,Guarnecido y enlucido de yeso a buena vista,5.81,4.44,0.32,0.06,11.20,Ibiza,synthetic-demo,2026-04-01
+PA-REV-003,m2,"Mortero monocapa proyectado en fachada, acabado raspado",13.75,10.50,0.75,0.06,26.50,Ibiza,synthetic-demo,2026-04-01
+PA-REV-004,m2,"Estuco veneciano interior, dos manos pulidas",19.72,15.05,1.08,0.06,38.00,Ibiza,synthetic-demo,2026-04-01
+PA-REV-005,m2,Alicatado de azulejo 20×20 con mortero cola,14.79,11.29,0.81,0.06,28.50,Ibiza,synthetic-demo,2026-04-01
+PA-REV-006,m2,Alicatado de gres porcelánico 60×30 rectificado,18.94,14.46,1.03,0.06,36.50,Ibiza,synthetic-demo,2026-04-01
+PA-REV-007,m,Rodapié de DM lacado h=7 cm,4.05,3.09,0.22,0.06,7.80,Ibiza,synthetic-demo,2026-04-01
+PA-REV-008,m,Rodapié de gres porcelánico h=8 cm,4.26,3.25,0.23,0.06,8.20,Ibiza,synthetic-demo,2026-04-01
+PA-REV-009,m2,Falso techo PYL continuo con perfilería oculta,16.86,12.88,0.92,0.06,32.50,Ibiza,synthetic-demo,2026-04-01
+PA-REV-010,m2,Falso techo registrable 60×60 sobre perfilería vista,12.87,9.83,0.70,0.06,24.80,Ibiza,synthetic-demo,2026-04-01
+PA-PAV-001,m2,Solado de gres porcelánico 60×60 sobre recrecido nivelado,16.30,22.41,2.04,0.06,43.20,Ibiza,synthetic-demo,2026-04-01
+PA-PAV-002,m2,"Solado de gres porcelánico 80×80 rectificado, junta mínima",21.43,29.48,2.68,0.06,56.80,Ibiza,synthetic-demo,2026-04-01
+PA-PAV-003,m2,"Solado de tarima flotante laminada AC4, base aislante",10.76,14.79,1.34,0.06,28.50,Ibiza,synthetic-demo,2026-04-01
+PA-PAV-004,m2,"Tarima maciza de roble e=22 mm, encolada y barnizada",33.21,45.66,4.15,0.06,88.00,Ibiza,synthetic-demo,2026-04-01
+PA-PAV-005,m2,Solado de microcemento bicapa con sellado,28.68,39.43,3.59,0.06,76.00,Ibiza,synthetic-demo,2026-04-01
+PA-PAV-006,m2,Mortero autonivelante e=5 mm de preparación de soporte,4.72,6.48,0.59,0.06,12.50,Ibiza,synthetic-demo,2026-04-01
+PA-PAV-007,m2,Recrecido de mortero e=5 cm para nivelación,6.98,9.60,0.87,0.06,18.50,Ibiza,synthetic-demo,2026-04-01
+PA-PAV-008,m2,Solado de baldosa hidráulica reproducción 20×20,29.43,40.48,3.68,0.06,78.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRI-001,ud,"Puerta interior lisa LH82 lacada, premarco y herrajes",80.66,188.21,0.00,0.06,285.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRI-002,ud,"Puerta corredera empotrada LH82, kit completo de estructura y guías",120.28,280.66,0.00,0.06,425.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRI-003,ud,Puerta doble vidriera LH82 con vidrio templado V40,164.15,383.02,0.00,0.06,580.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRI-004,ud,"Armario empotrado 1.20×2.40, frente lacado, interior melamina",277.36,647.17,0.00,0.06,980.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRI-005,ud,"Frontal de armario corredero 2.40×2.40, perfilería aluminio",203.78,475.47,0.00,0.06,720.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRI-006,m,"Encimera de cocina en madera maciza e=30 mm, tratada",62.27,145.28,0.00,0.06,220.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRE-001,m2,Ventana de aluminio RPT con doble acristalamiento 4+12+4,80.66,188.21,0.00,0.06,285.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRE-002,m2,Ventana de PVC 70 mm con doble acristalamiento bajo emisivo,90.57,211.32,0.00,0.06,320.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRE-003,m2,Ventana corredera de aluminio con vidrio templado de seguridad,96.22,224.54,0.00,0.06,340.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRE-004,ud,Puerta de entrada acorazada blindada nivel 4,277.36,647.17,0.00,0.06,980.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRE-005,m2,Persiana enrollable de PVC con cajón compacto,22.07,51.52,0.00,0.06,78.00,Ibiza,synthetic-demo,2026-04-01
+PA-CRE-006,m2,Mosquitera enrollable de aluminio,10.19,23.77,0.00,0.06,36.00,Ibiza,synthetic-demo,2026-04-01
+PA-PIN-001,m2,"Pintura plástica lisa, dos manos sobre paramento liso",3.85,2.56,0.00,0.06,6.80,Ibiza,synthetic-demo,2026-04-01
+PA-PIN-002,m2,"Pintura plástica satinada lavable, dos manos",4.81,3.21,0.00,0.06,8.50,Ibiza,synthetic-demo,2026-04-01
+PA-PIN-003,m2,"Pintura al silicato sobre fachada, dos manos",8.38,5.58,0.00,0.06,14.80,Ibiza,synthetic-demo,2026-04-01
+PA-PIN-004,m2,"Esmalte sintético sobre madera o metal, dos manos",7.07,4.72,0.00,0.06,12.50,Ibiza,synthetic-demo,2026-04-01
+PA-PIN-005,m2,"Barniz al agua sobre carpintería interior, dos manos",5.55,3.70,0.00,0.06,9.80,Ibiza,synthetic-demo,2026-04-01
+PA-FON-001,ud,"Punto de fontanería ACS + AFCH para lavabo, completo",47.88,88.91,0.00,0.06,145.00,Ibiza,synthetic-demo,2026-04-01
+PA-FON-002,ud,"Punto de fontanería ACS + AFCH para ducha, completo",54.48,101.18,0.00,0.06,165.00,Ibiza,synthetic-demo,2026-04-01
+PA-FON-003,ud,Punto de fontanería para inodoro con llave de paso,36.32,67.45,0.00,0.06,110.00,Ibiza,synthetic-demo,2026-04-01
+PA-FON-004,ud,Punto de fontanería ACS + AFCH para cocina con lavavajillas,59.43,110.38,0.00,0.06,180.00,Ibiza,synthetic-demo,2026-04-01
+PA-FON-005,ud,Lavabo de porcelana mural con grifería monomando,72.64,134.91,0.00,0.06,220.00,Ibiza,synthetic-demo,2026-04-01
+PA-FON-006,ud,"Inodoro de porcelana con cisterna baja, doble descarga",80.90,150.23,0.00,0.06,245.00,Ibiza,synthetic-demo,2026-04-01
+PA-FON-007,ud,Plato de ducha 100×70 + grifería termostática + mampara,125.47,233.02,0.00,0.06,380.00,Ibiza,synthetic-demo,2026-04-01
+PA-SAN-001,m,"Red horizontal de saneamiento PVC Ø110, colgada de forjado",12.05,22.38,0.00,0.06,36.50,Ibiza,synthetic-demo,2026-04-01
+PA-SAN-002,m,"Red vertical de saneamiento PVC Ø110, abrazaderas isofónicas",9.41,17.48,0.00,0.06,28.50,Ibiza,synthetic-demo,2026-04-01
+PA-SAN-003,ud,Arqueta de paso 40×40 de hormigón prefabricado,47.88,88.91,0.00,0.06,145.00,Ibiza,synthetic-demo,2026-04-01
+PA-SAN-004,ud,Sumidero sifónico de acero inoxidable para terraza,25.75,47.84,0.00,0.06,78.00,Ibiza,synthetic-demo,2026-04-01
+PA-SAN-005,ud,Bote sifónico PVC Ø110 para registro,7.43,13.80,0.00,0.06,22.50,Ibiza,synthetic-demo,2026-04-01
+PA-ELE-001,ud,"Punto de luz simple, mecanismo de calidad media",29.43,44.16,0.00,0.06,78.00,Ibiza,synthetic-demo,2026-04-01
+PA-ELE-002,ud,Punto de luz conmutado entre dos puntos,41.51,62.26,0.00,0.06,110.00,Ibiza,synthetic-demo,2026-04-01
+PA-ELE-003,ud,"Punto de enchufe 16 A, mecanismo de calidad media",21.13,31.70,0.00,0.06,56.00,Ibiza,synthetic-demo,2026-04-01
+PA-ELE-004,ud,Punto de enchufe 25 A para cocina u horno,33.21,49.81,0.00,0.06,88.00,Ibiza,synthetic-demo,2026-04-01
+PA-ELE-005,ud,Cuadro general de protección con 12 elementos modulares,120.76,181.13,0.00,0.06,320.00,Ibiza,synthetic-demo,2026-04-01
+PA-ELE-006,ud,"Punto de TV / datos RJ45, mecanismo y cableado",34.72,52.07,0.00,0.06,92.00,Ibiza,synthetic-demo,2026-04-01
+PA-ELE-007,m,Canalización de tubo corrugado PVC Ø20 mm empotrado,1.81,2.72,0.00,0.06,4.80,Ibiza,synthetic-demo,2026-04-01
+PA-CLI-001,ud,"Split inverter 2.500 frig, gas R-32, instalado",341.98,1025.94,0.00,0.06,1450.00,Ibiza,synthetic-demo,2026-04-01
+PA-CLI-002,ud,"Split inverter 4.500 frig, gas R-32, instalado",436.32,1308.96,0.00,0.06,1850.00,Ibiza,synthetic-demo,2026-04-01
+PA-CLI-003,ud,"Aerotermia bi-bloque 8 kW para ACS y calefacción, instalada",2004.72,6014.15,0.00,0.06,8500.00,Ibiza,synthetic-demo,2026-04-01
+PA-CLI-004,m2,"Suelo radiante hidráulico, panel + tubería + colectores",18.39,55.20,0.00,0.06,78.00,Ibiza,synthetic-demo,2026-04-01
+PA-CLI-005,ud,"Extractor centrífugo para baño, conducto incluido",34.20,102.59,0.00,0.06,145.00,Ibiza,synthetic-demo,2026-04-01
+PA-URB-001,m2,Pavimento de hormigón fratasado e=15 cm,14.53,18.16,3.63,0.06,38.50,Ibiza,synthetic-demo,2026-04-01
+PA-URB-002,m,Bordillo de hormigón prefabricado 12×25 cm,5.47,6.84,1.37,0.06,14.50,Ibiza,synthetic-demo,2026-04-01
+PA-URB-003,m2,Pavimento de adoquín de hormigón 10×20×8 cm,21.13,26.42,5.28,0.06,56.00,Ibiza,synthetic-demo,2026-04-01
+PA-URB-004,m2,"Césped artificial de 30 mm, sobre base de arena",9.36,11.70,2.34,0.06,24.80,Ibiza,synthetic-demo,2026-04-01
+PA-URB-005,ud,"Plantación de arbusto mediterráneo, contenedor C5",6.98,8.72,1.75,0.06,18.50,Ibiza,synthetic-demo,2026-04-01
