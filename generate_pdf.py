@@ -77,8 +77,8 @@ def build() -> pathlib.Path:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     doc = SimpleDocTemplate(
         str(OUT), pagesize=A4,
-        leftMargin=14 * mm, rightMargin=14 * mm,
-        topMargin=12 * mm, bottomMargin=12 * mm,
+        leftMargin=13 * mm, rightMargin=13 * mm,
+        topMargin=10 * mm, bottomMargin=10 * mm,
         title="Motor de Presupuestos — Guía rápida",
         author="Rex Construcciones",
     )
@@ -86,17 +86,17 @@ def build() -> pathlib.Path:
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle(
         "h1", parent=styles["Heading1"], fontName="Helvetica-Bold",
-        fontSize=16, leading=19, spaceBefore=0, spaceAfter=2,
+        fontSize=15, leading=18, spaceBefore=0, spaceAfter=2,
         textColor=HexColor("#1a3a5c"),
     )
     h2 = ParagraphStyle(
         "h2", parent=styles["Heading2"], fontName="Helvetica-Bold",
-        fontSize=11, leading=13, spaceBefore=8, spaceAfter=3,
+        fontSize=10.5, leading=12.5, spaceBefore=6, spaceAfter=2,
         textColor=HexColor("#1a3a5c"),
     )
     body = ParagraphStyle(
         "body", parent=styles["BodyText"], fontName="Helvetica",
-        fontSize=8.8, leading=11.5, alignment=TA_JUSTIFY, spaceAfter=3,
+        fontSize=8.6, leading=11, alignment=TA_JUSTIFY, spaceAfter=2.5,
     )
     intro = ParagraphStyle(
         "intro", parent=body, fontSize=9.4, leading=12.5,
@@ -139,8 +139,8 @@ def build() -> pathlib.Path:
     story.append(Paragraph("Tres maneras de empezar", h2))
     paths_data = [
         ("1.", "<b>Prueba una memoria de muestra</b>. En la pantalla principal "
-               "elige una del desplegable y pulsa «Procesar muestra». Tienes "
-               "seis ejemplos listos (lista abajo)."),
+               "elige una del desplegable y pulsa «Procesar muestra». Hay "
+               "nueve ejemplos listos (lista abajo)."),
         ("2.", "<b>Sube tu memoria</b>. Acepta <font face='Helvetica-Bold'>"
                "Markdown, texto, PDF</font> (incluidos los de proyecto técnico "
                "de 200+ páginas) y <font face='Helvetica-Bold'>BC3</font>. "
@@ -161,7 +161,7 @@ def build() -> pathlib.Path:
     ]))
     story.append(paths_tbl)
 
-    story.append(Paragraph("Las seis memorias de muestra (clic para descargar)", h2))
+    story.append(Paragraph("Las nueve memorias de muestra (clic para descargar)", h2))
     samples_data = []
     for fname, title, desc in SAMPLES:
         label = link(f"{REPO_RAW}/{fname}", fname)
