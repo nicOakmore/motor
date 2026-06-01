@@ -35,7 +35,9 @@ GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 #   gemma2-9b-it             → 14 000 TPM,  500 000 TPD  (best of both)
 # Default to gemma2-9b-it: the highest TPM available AND the higher TPD
 # budget — fits the longest prose memorias without hitting either limit.
-DEFAULT_MODEL = os.environ.get("LLM_MODEL", "gemma2-9b-it")
+DEFAULT_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
+FALLBACK_MODEL = "llama-3.1-8b-instant"
+FALLBACK_MEMORIA_CHARS = 9_000
 # Total prompt budget ≈ memoria + catalogue (~3 500 t) + system (~250 t)
 # + response (1 024 t) ≤ 12 000 t per call. 24 000 chars ≈ 6 000 tokens.
 MAX_MEMORIA_CHARS = 24_000
