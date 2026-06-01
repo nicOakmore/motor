@@ -214,14 +214,48 @@ def _parse_proposals(content: str, allowed_tipos: set[str]) -> list[dict]:
     return out
 
 
+def _call_model(model: str, memoria_text: str, max_chars: int,
+                concepto_metadata: dict, api_key: str) -> str:
+    """One Groq API call. Returns the model's content string, or raises."""
+    # Temporarily override MAX_MEMORIA_CHARS for this build
+    cleaned = _strip_toc(memoria_text)
+    text = _slice_memoria(cleaned, max_chars)
+    tipos = {k: v.get("descripcion_corta", "") for k, v in concepto_metadata.items()
+             if isinstance(v, dict) and not k.startswith("_")}
+    user_msg = (
+        "MEMORIA:\n```\n" + text + "\n```\n\n"
+        "TIPOS PERMITIDOS (clave → descripción corta):\n"
+        + json.dumps(tipos, ensure_ascii=False, indent=2)
+    )
+    payload = {
+        "model": model,
+        "temperature": 0.1,
+        "max_tokens": 1024,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": user_msg},
+        ],
+    }
+    raw = _post(payload, api_key)
+    try:
+        return raw["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        return ""
+
+
 def extract_scope(memoria_text: str,
                   concepto_metadata: dict,
                   model: str | None = None) -> list[dict]:
     """Propose scope-items from a memoria text. Returns a list of
     {tipo, cantidad, unidad} ready to drop into the editor as new rows.
 
+    Two-stage fallback: try the primary model with the full budget; on
+    rate-limit or model-deprecation, retry with the smaller fallback
+    model and a tighter memoria window so the smaller TPM still fits.
+
     Raises LLMUnavailable when the feature is disabled or has no key.
-    Returns [] when the model didn't propose anything usable.
+    Returns [] when no model could propose anything usable.
     """
     if not llm_enabled():
         raise LLMUnavailable(
@@ -229,20 +263,29 @@ def extract_scope(memoria_text: str,
             "in env to enable)."
         )
     api_key = os.environ["GROQ_API_KEY"].strip()
-    payload = {
-        "model": model or DEFAULT_MODEL,
-        "temperature": 0.1,
-        "max_tokens": 1024,
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content":
-                _build_user_message(memoria_text, concepto_metadata)},
-        ],
-    }
-    raw = _post(payload, api_key)
-    try:
-        content = raw["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError):
-        return []
-    return _parse_proposals(content, set(concepto_metadata.keys()))
+
+    attempts = [
+        (model or DEFAULT_MODEL, MAX_MEMORIA_CHARS),
+        (FALLBACK_MODEL,         FALLBACK_MEMORIA_CHARS),
+    ]
+    last_error: Exception | None = None
+    for m, budget in attempts:
+        try:
+            content = _call_model(m, memoria_text, budget, concepto_metadata, api_key)
+            if content:
+                proposals = _parse_proposals(content, set(concepto_metadata.keys()))
+                if proposals:
+                    return proposals
+                # Empty proposals: don't retry — model genuinely had nothing.
+                return []
+        except RuntimeError as exc:
+            msg = str(exc)
+            # Worth retrying with the fallback only if it's a transient
+            # quota / deprecation issue, not a network or auth failure.
+            if any(k in msg for k in ("429", "413", "rate_limit", "decommissioned")):
+                last_error = exc
+                continue
+            raise
+    if last_error is not None:
+        raise last_error
+    return []
