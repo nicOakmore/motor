@@ -57,20 +57,20 @@ SAMPLES = [
      "El mismo contenido en PDF — dispara las 6 banderas regulatorias."),
     ("santjosep_ibiza.pdf",
      "Proyecto Sant Josep de sa Talaia · PDF real (240 pp)",
-     "Memoria oficial de Ayuntamiento, narrativa pura sin scope numerado. "
-     "El parser saca metadata y la IA propone 2 partidas-candidato del "
-     "catálogo (cubierta y pavimento). El técnico las revisa o sustituye "
-     "en el editor — la IA no firma el presupuesto."),
+     "Memoria oficial de Ayuntamiento. La <b>regla cuadro de superficies</b> "
+     "detecta los 470 m² construidos y siembra solado + enlucido + pintura. "
+     "<b>PEM 42.588,34 € · TOTAL 55.748,13 €, sin tocar la IA.</b> El "
+     "técnico ajusta en el editor."),
     ("porreres_mallorca.pdf",
      "Cambio a agroturismo Porreres · PDF real",
-     "Memoria delgada — 90 páginas de referencias regulatorias "
-     "(CTE-DB-XX, Decretos) sin descripción de obra. La IA devuelve "
-     "«sin propuestas» (correcto): el técnico añade partidas en el "
-     "editor o sube el BC3 con las mediciones."),
+     "Memoria delgada — 90 pp de referencias regulatorias sin cuadro de "
+     "superficies cuantificado ni verbos de obra. Las reglas devuelven 0 y "
+     "la IA, igual (correcto: no hay datos que extraer). El técnico añade "
+     "partidas en el editor o sube el BC3 con las mediciones."),
     ("coac_grancanaria.pdf",
      "Plantilla COAC vivienda · PDF real",
-     "Plantilla CTE genérica. Demuestra extracción de metadata desde "
-     "formularios estandarizados; el alcance lo añade el técnico."),
+     "Plantilla CTE. La regla cuadro de superficies lee los 367 m² del "
+     "ejemplo. <b>PEM 33.250 € · TOTAL 43.524,51 €, sin IA.</b>"),
 ]
 
 
@@ -126,8 +126,16 @@ def build() -> pathlib.Path:
     story.append(Paragraph("Motor de Presupuestos · Guía rápida para Rex Construcciones", h1))
     story.append(Paragraph(
         "Conviertes una <b>memoria constructiva</b> en un presupuesto completo "
-        "con plan de obra, cuadros de precios, plan de acopios, BC3 y los "
-        "anexos legales obligatorios cuando aplican — en menos de un minuto.",
+        "(PDF + Excel), plan de obra, cuadros de precios Nº 1 y Nº 2, plan de "
+        "acopios, BC3 y los anexos legales obligatorios — en menos de un minuto.",
+        intro,
+    ))
+    story.append(Paragraph(
+        "<b>Cómo trabaja el motor:</b> primero corre <b>reglas deterministas</b> "
+        "que extraen el alcance del PDF (cuadros de superficies, verbos de "
+        "obra inline, formatos Markdown / BC3). Si esas reglas devuelven "
+        "cero, opcionalmente se llama a la <b>IA</b> como respaldo — y siempre "
+        "el técnico revisa en el editor. Misma memoria → mismos números.",
         intro,
     ))
     story.append(Spacer(1, 3))
@@ -220,7 +228,7 @@ def build() -> pathlib.Path:
     # ===== PAGE 2 =====
     story.append(PageBreak())
 
-    story.append(Paragraph("Lo que el sistema detecta automáticamente", h2))
+    story.append(Paragraph("Lo que el sistema detecta automáticamente (sin IA)", h2))
     auto_items = [
         "<b>Promotor</b> y <b>emplazamiento</b> — incluso en PDFs reales de "
         "200+ páginas, con o sin etiqueta «PROMOTOR:» / «EMPLAZAMIENTO:».",
@@ -228,10 +236,19 @@ def build() -> pathlib.Path:
         "cadastral «polígono N, parcelas X-Y-Z».",
         "<b>Si requiere proyecto técnico</b>: lo deduce de los títulos "
         "«PROYECTO BÁSICO», «PROYECTO DE EJECUCIÓN» o «PROYECTO TÉCNICO».",
-        "<b>Si hay demoliciones o movimiento de tierras</b> — para activar "
-        "la ordenanza municipal de ruido.",
-        "<b>Si toca cubierta, fachada o carpintería exterior</b> — para "
-        "activar el CTE-DB-HE (eficiencia energética).",
+        "<b>Cuadro de superficies</b> en cualquier PDF: extrae el área "
+        "total construida y siembra <b>solado + enlucido + pintura</b> "
+        "con factores 1× / 3× / 3× (perímetro × altura). Sant Josep "
+        "(470 m²) → 3 partidas reales sin IA.",
+        "<b>Verbos de obra inline</b>: «se demolerá / construirá / "
+        "enlucirá / colocará / instalará / sustituirá / pintará / "
+        "solará... <i>N m²</i>» convierte cada frase en una partida.",
+        "<b>Items numerados</b> en Markdown: «3. Enlucido de yeso: 80 m²». "
+        "Para memorias estructuradas vale así sin más.",
+        "<b>Si hay demoliciones o movimiento de tierras</b> — activa la "
+        "ordenanza municipal de ruido.",
+        "<b>Si toca cubierta, fachada o carpintería exterior</b> — activa "
+        "el CTE-DB-HE (eficiencia energética).",
         "<b>Uso turístico / vacacional / ETV</b> — sólo si la memoria lo "
         "declara explícitamente (evita falsos positivos en referencias CTE).",
         "<b>Huecos en tabiques</b>: «(con 4 huecos de 1,8 m²)» descuenta "
@@ -294,81 +311,43 @@ def build() -> pathlib.Path:
         body,
     ))
 
-    story.append(Paragraph("Reglas deterministas primero · IA opcional", h2))
+    story.append(Paragraph("Cómo extrae el alcance — orden de ejecución", h2))
     story.append(Paragraph(
-        "El parser ejecuta reglas deterministas <b>antes</b> de mirar la "
-        "IA. Para PDFs narrativos extrae (1) el cuadro de superficies "
-        "para sembrar solado, enlucido y pintura proporcionales al área "
-        "total; (2) verbos de obra inline como «se demolerá / se "
-        "construirá / se enlucirá... X m²». Sant Josep (240 pp, real) "
-        "produce así <b>PEM 42.588 € · TOTAL 55.748 €</b> sin tocar la "
-        "IA. La IA sólo entra como respaldo cuando el motor reglas "
-        "devuelve cero (memorias muy delgadas como Porreres).",
+        "<b>Paso 1 · Parser determinista.</b> Lee el PDF / Markdown / BC3 "
+        "y prueba, por este orden, los tres extractores: (a) <i>items "
+        "numerados Markdown</i> tipo «3. Enlucido: 80 m²»; (b) <i>cuadro "
+        "de superficies</i> (área total → solado / enlucido / pintura); "
+        "(c) <i>verbos de obra inline</i> en la prosa. Cubre los 9 "
+        "ejemplos de muestra y la mayoría de PDFs reales sin IA.",
         body,
     ))
     story.append(Paragraph(
-        "Modelo de gobierno: las reglas viven en <font face='Helvetica-"
-        "Oblique'>run_demo.SCOPE_VERBS / INLINE_SCOPE_VERBS / "
-        "SUPERFICIE_DERIVED_PARTIDAS</font>. La IA se usa <b>offline</b> "
-        "para proponer nuevas entradas cuando un formato nuevo aparece; "
-        "una vez añadidas, vuelven a ser deterministas para siempre.",
-        body,
-    ))
-
-    story.append(Paragraph("IA · respaldo opcional (y qué esperar)", h2))
-    story.append(Paragraph(
-        "Cuando subes una memoria narrativa (PDF sin lista numerada de "
-        "partidas), el panel de resultados ofrece el botón <b>«Extraer "
-        "partidas con IA»</b>. El modelo (<b>Llama 3.3 70B</b> vía Groq, "
-        "gratis, con fallback automático a Llama 3.1 8B si se agota el "
-        "cupo) propone partidas <i>contra el catálogo de 111 entradas</i>; "
-        "el motor determinista las precia y la auditoría sigue funcionando "
-        "— <b>la IA nunca asienta hechos por sí sola</b>.",
+        "<b>Paso 2 · IA solo si el paso 1 devolvió cero.</b> El botón "
+        "«Extraer partidas con IA» aparece cuando hay 0 partidas. Llama "
+        "3.3 70B vía Groq (gratis), con fallback automático a 8B si se "
+        "agota el cupo. <b>Determinista</b> (<code>temperature=0</code>) "
+        "y con deduplicación por tipo. Si tampoco la IA encuentra nada, "
+        "el técnico continúa por el editor o subiendo un BC3.",
         body,
     ))
     story.append(Paragraph(
-        "<b>Por diseño, la IA NO inventa partidas.</b> El prompt es "
-        "estricto: «si la memoria no menciona el trabajo con suficiente "
-        "claridad, OMITE la propuesta. No inventes mediciones.» En "
-        "consecuencia hay tres resultados posibles tras pulsar el botón:",
+        "<b>Paso 3 · Auditoría.</b> Cada partida lleva su <i>provenance</i> "
+        "en <font face='Helvetica-Oblique'>traza.md</font>: "
+        "<code>rule_cuadro_superficies</code>, <code>rule_inline_verb</code>, "
+        "<code>ingesta_memoria</code>, <code>ingesta_llm</code>, "
+        "<code>editor_override</code>. Sabes en todo momento de dónde "
+        "viene cada euro.",
         body,
     ))
     story.append(Paragraph(
-        "<b>(1) Candidatos para revisar.</b> Cuando la memoria contiene "
-        "verbos constructivos asociados a mediciones, la IA propone "
-        "2–10 partidas-candidato del catálogo con su medición. El "
-        "técnico SIEMPRE las revisa en el editor antes de enviar al "
-        "cliente: la IA puede confundir superficies útiles con partidas "
-        "y emparejar números con tipos plausibles. Tratar la salida como "
-        "<b>borrador en horas de trabajo</b>, no como presupuesto final.",
-        body,
-    ))
-    story.append(Paragraph(
-        "<b>(2) PEM = 0,00 € y aviso «sin propuestas».</b> La memoria es "
-        "una compilación de referencias regulatorias (CTE-DB-XX, RD, "
-        "Decretos) sin descripción suficiente del alcance — el caso "
-        "típico de muchos proyectos básicos delgados (ej. Porreres). "
-        "La IA rehúsa fabricar números: ésa es la <b>garantía de "
-        "auditoría</b>. Continuar por el editor (catálogo de 111 "
-        "partidas) o subir el BC3 si el técnico ya tiene las mediciones.",
-        body,
-    ))
-    story.append(Paragraph(
-        "<b>(3) Error de cupo.</b> Groq gratis tiene límites por minuto "
-        "(12.000 t para el 70B) y por día (100.000 t para el 70B; 500.000 "
-        "t para el 8B). El sistema reintenta automáticamente con el modelo "
-        "pequeño; si ambos están saturados, espera unos minutos o cambia "
-        "<code>LLM_MODEL</code> en Render.",
-        body,
-    ))
-    story.append(Paragraph(
-        "Determinismo: el sistema corre la IA a <code>temperature=0</code>; "
-        "el mismo memoria produce las mismas propuestas en cada ejecución. "
-        "Las propuestas duplicadas (la IA tiende a generar una entrada por "
-        "habitación) se consolidan automáticamente en una sola partida "
-        "por tipo, sumando las mediciones. La IA se apaga al instante "
-        "desde Render → Environment → <code>LLM_ENABLED=false</code> "
-        "sin redeploy.",
+        "<b>Modelo de gobierno:</b> las reglas viven en "
+        "<font face='Helvetica-Oblique'>run_demo.SCOPE_VERBS · "
+        "INLINE_SCOPE_VERBS · SUPERFICIE_DERIVED_PARTIDAS</font>. La IA "
+        "se usa <b>offline</b> para proponer nuevas entradas cuando "
+        "aparece un formato nuevo; una vez añadidas, vuelven a ser "
+        "deterministas para siempre. La IA se apaga al instante desde "
+        "Render → Environment → <code>LLM_ENABLED=false</code> sin "
+        "redeploy.",
         body,
     ))
 
@@ -390,8 +369,9 @@ def build() -> pathlib.Path:
     flow = [
         "<b>1.</b> Te llega la memoria del cliente o del técnico → la subes en la pantalla principal.",
         "<b>2.</b> Revisas en pantalla las partidas que ha encontrado, los totales y las banderas. "
-        "Si algo no cuadra, abres el <b>editor</b> y lo ajustas.",
-        "<b>3.</b> Descargas el <b>Presupuesto cliente</b> + el <b>Plan de obra</b> y los envías al cliente.",
+        "Si algo no cuadra (o salen 0 partidas), abres el <b>editor</b> y añades / ajustas del catálogo.",
+        "<b>3.</b> Descargas el <b>Presupuesto cliente</b> en PDF (para enviar al cliente) "
+        "y/o en <b>XLSX</b> (para reusar en Excel / Google Sheets), más el <b>Plan de obra</b>.",
         "<b>4.</b> Si la obra requiere proyecto técnico, descargas también el "
         "<b>Pliego</b>, el <b>ESS</b>, el <b>Plan de RCD</b> y el <b>Control "
         "de calidad CTE</b> — quedan para el técnico competente.",
