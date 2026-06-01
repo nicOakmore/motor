@@ -1,9 +1,11 @@
 """
-generate_pdf.py — One-page Spanish PDF explaining how the engine works.
+generate_pdf.py — Two-page Spanish guide for Rex Construcciones.
+
+Audience: the firm owner / a non-technical constructor. Tone: direct,
+action-oriented. Each section tells the reader what to click. Sample
+memorias are listed with clickable raw-GitHub download links.
 
 Output: salidas/como_funciona.pdf
-
-Stdlib + reportlab only. A4. Minimal styling, deliberately information-dense.
 """
 
 from __future__ import annotations
@@ -12,187 +14,301 @@ import pathlib
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.lib.colors import HexColor, black
+from reportlab.lib.colors import HexColor
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 )
 from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT
 
 ROOT = pathlib.Path(__file__).parent
 OUT = ROOT / "salidas" / "como_funciona.pdf"
 
+# Live URL + access (the audience is the firm owner)
+LIVE_URL = "https://motor-presupuestos.onrender.com"
+AUTH_USER = "adminmotor.com"
+AUTH_PASS = "1234.67A"
+
+# Raw-GitHub URLs to the sample memorias (public repo, no auth)
+REPO_RAW = "https://raw.githubusercontent.com/nicOakmore/motor/main/memorias"
+
+SAMPLES = [
+    ("memoria_santa_eulalia.md",
+     "Reforma vivienda urbana Santa Eulària (Ibiza)",
+     "Ejemplo sencillo en Markdown: tabique, enlucido, pintura, solado. "
+     "Vivienda habitual, no requiere proyecto técnico."),
+    ("memoria_rustico_ibiza.md",
+     "Ampliación en finca rústica Ibiza",
+     "Suelo rústico → dispara la bandera STOP. Requiere proyecto técnico, "
+     "se generan los 4 anexos regulatorios."),
+    ("memoria_finca_turistica.md",
+     "Finca para alquiler turístico San Antonio",
+     "Cubierta + fachada + uso turístico — dispara 6 banderas (turístico, "
+     "rústico/proyecto, accesibilidad, eficiencia, ruido, IVA)."),
+    ("santjosep_ibiza.pdf",
+     "Proyecto Sant Josep de sa Talaia (PDF real, 240 pp)",
+     "Memoria oficial de un proyecto básico y de ejecución. Demuestra la "
+     "extracción automática de promotor, emplazamiento y régimen."),
+    ("porreres_mallorca.pdf",
+     "Cambio de uso a agroturismo Porreres (PDF real)",
+     "Suelo rústico detectado por el patrón polígono / parcelas; "
+     "promotor extraído de un layout multilínea."),
+    ("coac_grancanaria.pdf",
+     "Plantilla COAC vivienda unifamiliar (PDF)",
+     "Plantilla CTE: prueba que el motor extrae datos también de "
+     "formularios genéricos."),
+]
+
 
 def build() -> pathlib.Path:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     doc = SimpleDocTemplate(
         str(OUT), pagesize=A4,
-        leftMargin=15 * mm, rightMargin=15 * mm,
+        leftMargin=14 * mm, rightMargin=14 * mm,
         topMargin=12 * mm, bottomMargin=12 * mm,
-        title="Motor de Presupuestos — Cómo funciona",
+        title="Motor de Presupuestos — Guía rápida",
+        author="Rex Construcciones",
     )
 
     styles = getSampleStyleSheet()
-    body = ParagraphStyle(
-        "body", parent=styles["BodyText"], fontName="Helvetica",
-        fontSize=8.6, leading=11.2, alignment=TA_JUSTIFY, spaceAfter=4,
-    )
     h1 = ParagraphStyle(
         "h1", parent=styles["Heading1"], fontName="Helvetica-Bold",
-        fontSize=14, leading=16, spaceBefore=0, spaceAfter=4,
+        fontSize=16, leading=19, spaceBefore=0, spaceAfter=2,
         textColor=HexColor("#1a3a5c"),
     )
     h2 = ParagraphStyle(
         "h2", parent=styles["Heading2"], fontName="Helvetica-Bold",
-        fontSize=9.4, leading=11, spaceBefore=5, spaceAfter=2,
+        fontSize=11, leading=13, spaceBefore=8, spaceAfter=3,
+        textColor=HexColor("#1a3a5c"),
+    )
+    body = ParagraphStyle(
+        "body", parent=styles["BodyText"], fontName="Helvetica",
+        fontSize=8.8, leading=11.5, alignment=TA_JUSTIFY, spaceAfter=3,
+    )
+    intro = ParagraphStyle(
+        "intro", parent=body, fontSize=9.4, leading=12.5,
+    )
+    cell = ParagraphStyle(
+        "cell", parent=body, fontName="Helvetica",
+        fontSize=8.4, leading=10.5, alignment=TA_LEFT, spaceAfter=0,
+    )
+    cell_b = ParagraphStyle(
+        "cell_b", parent=cell, fontName="Helvetica-Bold",
         textColor=HexColor("#1a3a5c"),
     )
     small = ParagraphStyle(
         "small", parent=body, fontSize=7.5, leading=9.5,
-        textColor=HexColor("#444444"),
+        textColor=HexColor("#444444"), spaceAfter=0,
     )
+    link_color = "#1a3a5c"
 
-    story = []
+    def link(href: str, text: str) -> str:
+        return (f'<link href="{href}" color="{link_color}">'
+                f'<u>{text}</u></link>')
 
-    story.append(Paragraph("Motor de Presupuestos — Cómo funciona", h1))
+    story: list = []
+
+    # ===== PAGE 1 =====
+    story.append(Paragraph("Motor de Presupuestos · Guía rápida para Rex Construcciones", h1))
     story.append(Paragraph(
-        "Sistema de reglas que transforma una <b>memoria constructiva</b> en un "
-        "presupuesto trazable conforme a la normativa española (RD 1098/2001, "
-        "Ley 37/1992) y al régimen urbanístico de Ibiza/Baleares (LUIB 12/2017). "
-        "Cada euro se justifica con una regla, un precio y una línea del alcance: "
-        "si no se puede trazar, el sistema no lo emite.",
-        body,
+        "Conviertes una <b>memoria constructiva</b> en un presupuesto completo "
+        "con plan de obra, cuadros de precios, plan de acopios, BC3 y los "
+        "anexos legales obligatorios cuando aplican — en menos de un minuto.",
+        intro,
     ))
-    story.append(Paragraph(
-        "<b>Demo en vivo (acceso restringido):</b> "
-        "<font color='#1a3a5c'>https://motor-presupuestos.onrender.com</font> — "
-        "sube una memoria o elige una de muestra. La página requiere usuario y "
-        "contraseña y bloquea a los buscadores (robots.txt + meta noindex + "
-        "X-Robots-Tag). El catálogo de partidas y los precios viven en "
-        "<font face='Helvetica-Oblique'>rules.json</font> + "
-        "<font face='Helvetica-Oblique'>precios/</font>; el motor sólo lee, "
-        "nunca escribe.",
-        body,
-    ))
-
-    story.append(Paragraph("Arquitectura en cinco capas", h2))
-    # Paragraph styles for table cells (Table strings don't word-wrap).
-    cell_b = ParagraphStyle("cell_b", parent=body, fontName="Helvetica-Bold",
-                             fontSize=8.4, leading=10, alignment=TA_LEFT,
-                             textColor=HexColor("#1a3a5c"), spaceAfter=0)
-    cell_t = ParagraphStyle("cell_t", parent=body, fontName="Helvetica",
-                             fontSize=8.4, leading=10, alignment=TA_LEFT,
-                             spaceAfter=0)
-    layers = [
-        ("A. INGESTA",
-         "Lectura de la memoria + catálogos de precios (BC3, XLSX, CSV). "
-         "Convierte texto desordenado en hechos tipados."),
-        ("B. NORMALIZACIÓN",
-         "Catálogo canónico: cada precio se anota con {código, unidad, ámbito, "
-         "fecha, fuente}. Prioridad: local &gt; Balears/Ibiza &gt; BEDEC/CYPE &gt; web."),
-        ("C. MOTOR DE REGLAS",
-         "Encadenamiento hacia adelante estilo CLIPS. Dispara reglas por "
-         "saliencia hasta el punto fijo. Determinista: mismos hechos + mismas "
-         "reglas ⇒ mismo presupuesto."),
-        ("D. OPTIMIZACIÓN",
-         "(Opcional) Consolida pedidos de material, aplica merma, agrupa por "
-         "proveedor y plazo. Reservado para NSGA-II."),
-        ("E. SALIDA",
-         "Presupuesto (PEM→PEC→IVA→TOTAL), cuadros de precios nº1 y nº2, plan "
-         "de acopios, plan de obra (Gantt), exportación BC3 (FIEBDC-3) y "
-         "checklist regulatorio."),
-    ]
-    layers_data = [[Paragraph(label, cell_b), Paragraph(desc, cell_t)]
-                   for label, desc in layers]
-    tbl = Table(layers_data, colWidths=[33 * mm, 145 * mm])
-    tbl.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("LINEBELOW", (0, 0), (-1, -2), 0.25, HexColor("#dddddd")),
-    ]))
-    story.append(tbl)
-
-    story.append(Paragraph("El cómputo regulado (RD 1098/2001)", h2))
-    cost_rows = [
-        ("PEM", "Presupuesto de Ejecución Material", "Σ partidas (medición × precio unitario)"),
-        ("PU", "Precio unitario por partida", "(Σ mo + mat + maq) × (1 + indirectos) · ver Cuadro Nº 2"),
-        ("GG", "Gastos Generales", "13% · PEM"),
-        ("BI", "Beneficio Industrial", "6% · PEM"),
-        ("PEC", "Presupuesto de Ejecución por Contrata", "PEM + GG + BI"),
-        ("IVA", "Impuesto sobre el Valor Añadido", "10% vivienda habitual (Ley 37/1992); 21% resto; mixto por partida si procede"),
-        ("RET.", "Retención IRPF (autónomos)", "parámetro retencion_irpf_pct"),
-        ("R.E.", "Recargo de equivalencia (cuando aplica)", "parámetro recargo_equivalencia_pct"),
-        ("TOTAL", "Importe a facturar al promotor", "PEC + IVA − RET. + R.E."),
-        ("ICIO", "Impuesto Construcciones (municipal)", "tipo municipal · PEM"),
-    ]
-    cell_s = ParagraphStyle("cell_s", parent=cell_t, fontSize=8.2, leading=9.8)
-    cell_sb = ParagraphStyle("cell_sb", parent=cell_b, fontSize=8.2, leading=9.8)
-    cost_data = [[Paragraph(a, cell_sb), Paragraph(b, cell_s), Paragraph(c, cell_s)]
-                 for a, b, c in cost_rows]
-    cost_tbl = Table(cost_data, colWidths=[16 * mm, 70 * mm, 92 * mm])
-    cost_tbl.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
-        ("LINEBELOW", (0, 0), (-1, -2), 0.25, HexColor("#dddddd")),
-    ]))
-    story.append(cost_tbl)
-
-    story.append(Paragraph("Salvaguardas regulatorias en Ibiza", h2))
-    story.append(Paragraph(
-        "El motor levanta <b>banderas</b>, nunca decide legalidad. "
-        "<b>STOP RUSTICO_REVISAR</b> en suelo rústico (Ley 7/2024). "
-        "<b>STOP USO_TURISTICO_IBIZA</b> si la memoria menciona uso turístico "
-        "/ ETV (Ley 8/2012, Decreto 20/2015, moratorias municipales). "
-        "<b>WARN LICENCIA_PREVIA</b> si requiere proyecto técnico (LOE 38/1999 "
-        "→ LUIB art. 146 + anexos ESS, RCD, control de calidad CTE y plan de obra). "
-        "<b>WARN ACCESIBILIDAD_SUA</b> (CTE-DB-SUA) y <b>WARN EFICIENCIA_HE</b> "
-        "(CTE-DB-HE, cuando toca envolvente). <b>INFO RUIDO_MUNICIPAL</b> con "
-        "demoliciones o movimiento de tierras. <b>INFO IVA_REDUCIDO_10</b> "
-        "al aplicar el 10% por vivienda habitual.",
-        body,
-    ))
-
-    story.append(Paragraph("Flujo de trabajo", h2))
-    wf_rows = [
-        ("1", "Acceder a <b>https://motor-presupuestos.onrender.com</b> con usuario y contraseña."),
-        ("2", "Elegir una memoria de muestra o subir la propia (.md / .txt). El parser reconoce ~80 verbos del catálogo."),
-        ("3", "El motor genera el presupuesto, las partidas por capítulo, el plan de obra con fechas reales (excluye fines de semana y festivos de Baleares) y las banderas regulatorias."),
-        ("4", "<b>Editar partidas en el navegador</b> (medición, precio, IVA por partida, añadir/eliminar desde el catálogo de 111 partidas, sobrescribir GG/BI/IVA/retención IRPF/recargo de equivalencia). Recalcula y regenera los PDFs al instante."),
-        ("5", "Si la obra requiere proyecto técnico se generan además los <b>anexos regulatorios</b>: pliego de condiciones, ESS (RD 1627/1997), plan de RCD (RD 105/2008) y plan de control de calidad CTE."),
-        ("6", "Para memorias narrativas (PDF de proyecto técnico) sin lista numerada de partidas, opción de <b>extraer partidas con IA</b> contra el catálogo (opt-in). Las propuestas pasan por el motor determinista — la IA no asienta hechos por sí sola."),
-        ("7", "Descargar los entregables: <b>Presupuesto cliente</b> + <b>Plan de obra</b> + <b>Cuadro de Precios Nº 1 y Nº 2</b> (descompuesto mo/mat/maq), los anexos regulatorios cuando aplican, plan_acopios.csv, flags.md, presupuesto.bc3 (con pliego y mediciones round-trippables a Presto/Arquímedes/CYPE) y la traza."),
-        ("8", "Trazar cualquier euro: traza.md → partida → price_ref + scope_ref + regla que lo produjo."),
-    ]
-    workflow_data = [[Paragraph(n, cell_sb), Paragraph(t, cell_s)] for n, t in wf_rows]
-    wf_tbl = Table(workflow_data, colWidths=[6 * mm, 172 * mm])
-    wf_tbl.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
-    ]))
-    story.append(wf_tbl)
-
-    story.append(Paragraph("¿Por qué esta forma?", h2))
-    story.append(Paragraph(
-        "Un presupuesto de obra en España es un documento técnico-legal: cada "
-        "partida debe ser medible, cada precio justificable, y el escalado "
-        "GG/BI/IVA viene fijado por norma. Un LLM en caja negra que «redacte un "
-        "presupuesto» no puede defender una sola línea ante un cliente, una "
-        "inspección o una disputa. Al situar al LLM como <b>autor de reglas "
-        "declarativas</b> y a un motor determinista como <b>ejecutor</b>, todo "
-        "euro queda atado a una regla, un precio y un ítem del alcance — y los "
-        "mismos datos producen siempre el mismo presupuesto.",
-        body,
-    ))
-
     story.append(Spacer(1, 3))
     story.append(Paragraph(
-        "Motor de Presupuestos · Documento generado automáticamente.",
+        f"<b>Acceso:</b> {link(LIVE_URL, LIVE_URL)} · "
+        f"usuario <b>{AUTH_USER}</b> · contraseña <b>{AUTH_PASS}</b>",
+        body,
+    ))
+
+    story.append(Paragraph("Tres maneras de empezar", h2))
+    paths_data = [
+        ("1.", "<b>Prueba una memoria de muestra</b>. En la pantalla principal "
+               "elige una del desplegable y pulsa «Procesar muestra». Tienes "
+               "seis ejemplos listos (lista abajo)."),
+        ("2.", "<b>Sube tu memoria</b>. Acepta <font face='Helvetica-Bold'>"
+               "Markdown, texto, PDF</font> (incluidos los de proyecto técnico "
+               "de 200+ páginas) y <font face='Helvetica-Bold'>BC3</font>. "
+               "Pulsa «Procesar memoria»."),
+        ("3.", "<b>Sube un BC3 de Presto / Arquímedes / CYPE</b>. El motor "
+               "lee capítulos, partidas, descompuestos, mediciones y pliego "
+               "directamente — no hace falta retipear nada."),
+    ]
+    paths_tbl = Table(
+        [[Paragraph(n, cell_b), Paragraph(t, cell)] for n, t in paths_data],
+        colWidths=[6 * mm, 176 * mm],
+    )
+    paths_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]))
+    story.append(paths_tbl)
+
+    story.append(Paragraph("Las seis memorias de muestra (clic para descargar)", h2))
+    samples_data = []
+    for fname, title, desc in SAMPLES:
+        label = link(f"{REPO_RAW}/{fname}", fname)
+        samples_data.append([
+            Paragraph(label, cell_b),
+            Paragraph(f"<b>{title}.</b> {desc}", cell),
+        ])
+    samples_tbl = Table(samples_data, colWidths=[55 * mm, 127 * mm])
+    samples_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.25, HexColor("#d6dae2")),
+    ]))
+    story.append(samples_tbl)
+
+    story.append(Paragraph("Lo que obtienes (descargables en la pantalla de resultado)", h2))
+    deliverables_data = [
+        ("Presupuesto cliente",
+         "PDF con cabecera Rex Construcciones, capítulos, partidas, cuadro PEM → PEC → IVA → TOTAL."),
+        ("Plan de obra",
+         "PDF con calendario real (excluye fines de semana y festivos de Baleares) y diagrama de barras."),
+        ("Cuadro de Precios Nº 1",
+         "Precios unitarios en cifra y en letra (art. 100 RGLCAP)."),
+        ("Cuadro de Precios Nº 2",
+         "Descompuesto mo / mat / maq con rendimientos reales por partida."),
+        ("Plan de acopios",
+         "CSV con materiales consolidados y merma aplicada."),
+        ("Checklist regulatorio",
+         "Markdown con todas las banderas y la regla que las disparó."),
+        ("Presupuesto BC3",
+         "FIEBDC-3/2024 — exportable a Presto / Arquímedes / CYPE."),
+        ("Cuando hay proyecto técnico, también:",
+         "Pliego de condiciones · Estudio de Seguridad y Salud (RD 1627/1997) · "
+         "Plan de gestión de RCD (RD 105/2008) · Plan de control de calidad CTE."),
+    ]
+    delivs_tbl = Table(
+        [[Paragraph(f"<b>{a}</b>", cell_b), Paragraph(b, cell)]
+         for a, b in deliverables_data],
+        colWidths=[55 * mm, 127 * mm],
+    )
+    delivs_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.25, HexColor("#d6dae2")),
+    ]))
+    story.append(delivs_tbl)
+
+    # ===== PAGE 2 =====
+    story.append(PageBreak())
+
+    story.append(Paragraph("Lo que el sistema detecta automáticamente", h2))
+    auto_items = [
+        "<b>Promotor</b> y <b>emplazamiento</b> — incluso en PDFs reales de "
+        "200+ páginas, con o sin etiqueta «PROMOTOR:» / «EMPLAZAMIENTO:».",
+        "<b>Suelo</b>: rústico, urbano, ANEI/ARIP, código SRC, o el patrón "
+        "cadastral «polígono N, parcelas X-Y-Z».",
+        "<b>Si requiere proyecto técnico</b>: lo deduce de los títulos "
+        "«PROYECTO BÁSICO», «PROYECTO DE EJECUCIÓN» o «PROYECTO TÉCNICO».",
+        "<b>Si hay demoliciones o movimiento de tierras</b> — para activar "
+        "la ordenanza municipal de ruido.",
+        "<b>Si toca cubierta, fachada o carpintería exterior</b> — para "
+        "activar el CTE-DB-HE (eficiencia energética).",
+        "<b>Uso turístico / vacacional / ETV</b> — sólo si la memoria lo "
+        "declara explícitamente (evita falsos positivos en referencias CTE).",
+        "<b>Huecos en tabiques</b>: «(con 4 huecos de 1,8 m²)» descuenta "
+        "automáticamente de la medición.",
+    ]
+    for it in auto_items:
+        story.append(Paragraph("• " + it, body))
+
+    story.append(Paragraph("Banderas regulatorias automáticas (Spain / Ibiza)", h2))
+    flags_data = [
+        ("STOP",  "USO_TURISTICO_IBIZA",  "Ley 8/2012 + Decreto 20/2015 ETV — moratorias municipales."),
+        ("STOP",  "RUSTICO_REVISAR",      "Ley 7/2024 — régimen de legalización en suelo rústico."),
+        ("WARN",  "LICENCIA_PREVIA",      "LUIB 12/2017 art. 146 — licencia municipal previa + anexos obligatorios."),
+        ("WARN",  "ACCESIBILIDAD_SUA",    "CTE-DB-SUA — itinerarios accesibles, aseos."),
+        ("WARN",  "EFICIENCIA_HE",        "CTE-DB-HE — limitación de demanda, transmitancias U, certif. energética."),
+        ("INFO",  "RUIDO_MUNICIPAL",      "Ordenanza municipal de ruido cuando hay demoliciones / movimiento de tierras."),
+        ("INFO",  "IVA_REDUCIDO_10",      "Ley 37/1992 art. 91 — IVA 10% por vivienda habitual."),
+    ]
+    flags_tbl = Table(
+        [[Paragraph(f"<b>{lvl}</b>", cell_b), Paragraph(f"<b>{code}</b>", cell),
+          Paragraph(why, cell)] for lvl, code, why in flags_data],
+        colWidths=[14 * mm, 47 * mm, 121 * mm],
+    )
+    flags_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.25, HexColor("#d6dae2")),
+    ]))
+    story.append(flags_tbl)
+
+    story.append(Paragraph("Editar en el navegador (sin instalar nada)", h2))
+    edit_items = [
+        "<b>Cambiar</b> medición, precio unitario o IVA por partida.",
+        "<b>Añadir</b> partida nueva desde el catálogo de 111 entradas (autocomplete).",
+        "<b>Eliminar</b> partidas que no apliquen.",
+        "<b>Sobrescribir</b> Gastos Generales, Beneficio Industrial, IVA por defecto, retención IRPF, recargo de equivalencia.",
+        "Al guardar, <b>todos los PDFs y el BC3 se regeneran al instante</b> con los nuevos números.",
+    ]
+    for it in edit_items:
+        story.append(Paragraph("• " + it, body))
+
+    story.append(Paragraph("Catálogo y depth", h2))
+    story.append(Paragraph(
+        "El catálogo trae <b>111 partidas en 17 capítulos</b> (Demoliciones, "
+        "Movimiento de tierras, Cimentación, Estructura, Cubiertas, "
+        "Albañilería, Aislamientos, Revestimientos, Pavimentos, Carpintería "
+        "interior / exterior, Pintura, Fontanería, Saneamiento, Electricidad, "
+        "Climatización, Urbanización) con precios mid-range Ibiza 2026. "
+        "52 partidas llevan <b>descompuesto detallado</b> "
+        "(15 oficios con €/h, 58 materiales, 7 máquinas) — el Cuadro Nº 2 "
+        "muestra h × tarifa / cantidad × precio igual que Presto.",
+        body,
+    ))
+    story.append(Paragraph(
+        "Cambiar el catálogo por uno propio o por una exportación BEDEC/ITeC: "
+        "sustituye los CSV de la carpeta <font face='Helvetica-Oblique'>precios/</font> "
+        "y vuelve a procesar. El motor no toca el código.",
+        body,
+    ))
+
+    story.append(Paragraph("IA opcional para memorias narrativas", h2))
+    story.append(Paragraph(
+        "Cuando subes una memoria de proyecto en formato narrativo (PDF "
+        "técnico que no usa lista numerada de partidas), aparece un botón "
+        "«<b>Extraer partidas con IA</b>». La IA (Llama 3.3 70B vía Groq, "
+        "gratis) propone las partidas mencionadas; el motor determinista "
+        "las precia y la auditoría sigue funcionando. Si nunca quieres "
+        "usarla, no aparece — está apagada por defecto.",
+        body,
+    ))
+
+    story.append(Paragraph("Cómo usarlo en tu día a día", h2))
+    flow = [
+        "<b>1.</b> Te llega la memoria del cliente o del técnico → la subes en la pantalla principal.",
+        "<b>2.</b> Revisas en pantalla las partidas que ha encontrado, los totales y las banderas. "
+        "Si algo no cuadra, abres el <b>editor</b> y lo ajustas.",
+        "<b>3.</b> Descargas el <b>Presupuesto cliente</b> + el <b>Plan de obra</b> y los envías al cliente.",
+        "<b>4.</b> Si la obra requiere proyecto técnico, descargas también el "
+        "<b>Pliego</b>, el <b>ESS</b>, el <b>Plan de RCD</b> y el <b>Control "
+        "de calidad CTE</b> — quedan para el técnico competente.",
+        "<b>5.</b> El <b>BC3</b> lo abres en Presto / Arquímedes para guardar "
+        "en tu sistema interno.",
+    ]
+    for s in flow:
+        story.append(Paragraph(s, body))
+
+    story.append(Spacer(1, 2))
+    story.append(Paragraph(
+        "Cada euro del presupuesto es trazable hasta la regla y la línea "
+        "de la memoria que lo originó (archivo <font face='Helvetica-Oblique'>"
+        "traza.md</font>) — defendible ante el cliente, el técnico o una "
+        "inspección.",
         small,
     ))
 
