@@ -1,6 +1,7 @@
 Flask==3.0.3
 gunicorn==23.0.0
 reportlab==4.2.5
+openpyxl==3.1.5           # XLSX export of presupuesto, plan_acopios and descompuestos
 pypdf==5.2.0              # primary PDF text extractor — light, fast, no graphics processing
 pdfplumber==0.11.4        # fallback if pypdf chokes on a doc (rarely used)
 # Optional, for additional ingest at the edges (not required by the demo):

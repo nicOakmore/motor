@@ -46,6 +46,7 @@ import bc3
 import client_pdfs
 import regulatory_pdfs
 import cuadros_precios
+import xlsx_export
 
 
 ROOT = pathlib.Path(__file__).parent
@@ -212,6 +213,189 @@ MEASURE_RE = re.compile(
     r"(m[²2³3]?|ud(?:es|s|)?|unidad(?:es)?|kg)\b",
     re.IGNORECASE,
 )
+
+
+# --------------------------------------------------------------------------
+# Deterministic rules for narrative proyectos técnicos.
+#
+# Three patterns common to every real PDF we have (Sant Josep, Porreres,
+# COAC Gran Canaria) — encoded as regex so the parser can extract a
+# starting set of partidas without calling the LLM every time.
+#
+# Architecture: the LLM's role shifts from "parse every memoria" to
+# "propose new regex / scope-verb entries offline when a memoria format
+# isn't covered". Once a pattern is added here it fires deterministically
+# for every future upload.
+# --------------------------------------------------------------------------
+
+# 1) Cuadro de superficies — a table of room areas. Format varies but
+# always lists "DEPENDENCIA  AREA_NUMBER". We capture room names paired
+# with their m² value, anywhere within ~60 lines after the heading.
+CUADRO_HEADING_RE = re.compile(
+    r"(?:cuadros?\s+de\s+superficies"
+    r"|superficies?\s+(?:[uú]tiles|construidas|del\s+programa))",
+    re.IGNORECASE,
+)
+ROOM_AREA_RE = re.compile(
+    r"^\s*([A-ZÁÉÍÓÚÑa-záéíóúñ][\w\sñÑáéíóúÁÉÍÓÚ./()-]{3,40})\s+"
+    r"(\d{1,4}[,.]\d{1,3}|\d{1,4})\s*(?:m[²2])?\s*$"
+)
+# Captures "TOTAL ... 470,07 m2" / "TOTAL 470,07m2" / "TOTAL CONSTRUIDO ... 470 m²"
+# anywhere in or below a cuadro de superficies block. Most reliable signal
+# for the building's total floor area in real proyectos técnicos.
+TOTAL_AREA_RE = re.compile(
+    r"\bTOTAL(?:\s+(?:CONSTRUID[OA]|[ÚU]TIL|EDIFIC\w*))?\s+"
+    r"(?:PLANTA\s+\w+\s+)?"
+    r"(\d{1,4}(?:[.,]\d{1,3})?)\s*m\s*[²2]",
+    re.IGNORECASE,
+)
+
+# 2) Inline scope declarations: "se construirá un tabique LH7 de 40 m²",
+# "se colocará solado de gres porcelánico (45 m²)", "se demolerá el
+# muro existente (12 m²)". One regex per (verb-family → tipo).
+INLINE_SCOPE_VERBS: list[tuple[str, str]] = [
+    # (regex, concepto)
+    (r"se\s+demoler[áa]\s+(?:el\s+|la\s+)?(?:muro|tabique|tabiqu[ií]a)[^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "demolicion_tabique_lhd"),
+    (r"se\s+(?:construir[áa]|levantar[áa]|ejecutar[áa])\s+(?:un\s+|el\s+)?tabique[^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "tabique_lh7"),
+    (r"se\s+enlucir[áa][^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "enlucido_yeso"),
+    (r"se\s+pintar[áa][^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "pintura_plastica_lisa"),
+    (r"se\s+(?:colocar[áa]|instalar[áa])\s+(?:el\s+)?solado[^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "solado_porcelanico_60"),
+    (r"se\s+(?:colocar[áa]|instalar[áa])\s+(?:el\s+)?gres\s+porcel[áa]nico[^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "solado_porcelanico_60"),
+    (r"se\s+sustituir[áa]\s+(?:la\s+)?cubierta[^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "cubierta_plana_no_transitable"),
+    (r"se\s+instalar[áa]\s+(?:la\s+)?impermeabilizaci[oó]n[^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "impermeabilizacion_epdm"),
+    (r"se\s+(?:colocar[áa]|instalar[áa])\s+aislamiento[^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "aislamiento_xps"),
+    (r"se\s+(?:sustituir[áa]|instalar[áa])\s+(?:la\s+)?ventana[^.]{0,80}?(\d+(?:[.,]\d+)?)\s*m[²2]",
+     "ventana_aluminio_rpt"),
+]
+
+# 3) From a "Cuadro de superficies", we derive a small set of starter
+# partidas: solado for all useful floor area, enlucido at 3x floor
+# (rough wall area), pintura same as enlucido. The technician adjusts
+# in the editor — these are explicitly tagged "deterministic_rule" in
+# provenance so the trace shows they came from a rule, not the LLM.
+SUPERFICIE_DERIVED_PARTIDAS: list[tuple[str, float, str]] = [
+    # (concepto, factor over total floor area, comment)
+    ("solado_porcelanico_60",   1.00, "Solado: superficie útil total"),
+    ("enlucido_yeso",           3.00, "Enlucido: ~3× superficie útil (perímetro × 2.5 m altura)"),
+    ("pintura_plastica_lisa",   3.00, "Pintura: misma medida que enlucido"),
+]
+
+
+def _extract_cuadro_superficies(text: str) -> list[dict]:
+    """Find every "Cuadro de superficies" block. Returns a list of rooms
+    [{name, area_m2}, ...]. When per-room parsing finds nothing useful
+    (real PDFs often use multi-column tables that defeat a row-based
+    regex), we fall back to whatever "TOTAL ... N m²" lines appear in
+    the same region — a single synthetic "Superficie total" entry."""
+    rooms: list[dict] = []
+    for m in CUADRO_HEADING_RE.finditer(text):
+        tail = text[m.end():m.end() + 4000]
+        local_rooms: list[dict] = []
+        for line in tail.splitlines()[:80]:
+            match = ROOM_AREA_RE.match(line)
+            if not match:
+                continue
+            name = match.group(1).strip(" .:-")
+            try:
+                area = float(match.group(2).replace(",", "."))
+            except ValueError:
+                continue
+            if not 1 <= area <= 2000:
+                continue
+            if name.lower() in ("planta", "total", "superficie", "construida",
+                                 "útil", "utilidad", "construcción", "edificable"):
+                continue
+            local_rooms.append({"name": name, "area_m2": round(area, 2)})
+
+        if local_rooms:
+            rooms.extend(local_rooms)
+            continue
+        # Fallback: scan for TOTAL lines in the same region.
+        totals = []
+        for t in TOTAL_AREA_RE.finditer(tail):
+            try:
+                v = float(t.group(1).replace(",", "."))
+            except ValueError:
+                continue
+            if 20 <= v <= 5000:
+                totals.append(v)
+        if totals:
+            # Use the largest TOTAL — usually "TOTAL CONSTRUIDO" or "TOTAL
+            # edificio". Tagged so the explainer can show provenance.
+            rooms.append({"name": "Superficie construida total",
+                          "area_m2": round(max(totals), 2)})
+    return rooms
+
+
+def _items_from_inline_verbs(text: str) -> list[dict]:
+    """Apply the INLINE_SCOPE_VERBS regex set to the full memoria text
+    (after TOC stripping wouldn't help here — the verbs appear inside
+    descriptive paragraphs)."""
+    items: list[dict] = []
+    seen: set[tuple[str, float]] = set()
+    for pattern, tipo in INLINE_SCOPE_VERBS:
+        for m in re.finditer(pattern, text, re.IGNORECASE):
+            try:
+                qty = float(m.group(1).replace(",", "."))
+            except (IndexError, ValueError):
+                continue
+            if qty <= 0 or qty > 5000:
+                continue
+            key = (tipo, round(qty, 2))
+            if key in seen:
+                continue
+            seen.add(key)
+            items.append({"tipo": tipo, "cantidad": qty, "unidad": "m2",
+                          "_provenance": "rule_inline_verb"})
+    return items
+
+
+def _items_from_superficies(rooms: list[dict]) -> list[dict]:
+    """Convert "Cuadro de superficies" hits into a starter set of partidas.
+
+    Real PDFs frequently match the heading several times (TOC + body +
+    annex) and our parser re-detects the same totals each time. We
+    therefore base the partidas on the LARGEST single area we found —
+    typically the building's TOTAL CONSTRUIDO — instead of summing all
+    matches together, which would multiply the same number by N."""
+    if not rooms:
+        return []
+    # Drop duplicates (same area value seen across multiple cuadro hits).
+    unique_areas = sorted({round(r["area_m2"], 2) for r in rooms}, reverse=True)
+    base_area = unique_areas[0]
+    # If per-room rows are available, prefer their sum — it's more
+    # accurate than relying on a TOTAL line that may include unbuilt
+    # plot area (Sant Josep's "1.833 m² de cabida" trap).
+    per_room = [r for r in rooms if not r["name"].lower().startswith(
+        ("superficie construida total", "total", "planta"))]
+    if per_room:
+        # Deduplicate rooms by (name, area) to avoid the same room
+        # appearing in útil + construido + planta tables.
+        seen = set()
+        per_room_sum = 0.0
+        for r in per_room:
+            k = (r["name"].lower(), round(r["area_m2"], 2))
+            if k in seen:
+                continue
+            seen.add(k)
+            per_room_sum += r["area_m2"]
+        if 10 <= per_room_sum <= base_area * 3:
+            base_area = per_room_sum
+    items: list[dict] = []
+    for tipo, factor, _comment in SUPERFICIE_DERIVED_PARTIDAS:
+        items.append({"tipo": tipo, "cantidad": round(base_area * factor, 2),
+                      "unidad": "m2",
+                      "_provenance": "rule_cuadro_superficies"})
+    return items
 # Numbered list item: starts with "N. " (after optional whitespace).
 ITEM_RE = re.compile(r"^\s*\d+\.\s+(.*)", re.MULTILINE)
 # Measurement-rule: huecos to deduct. Recognised forms (in parens after the
@@ -526,6 +710,18 @@ def parse_memoria(path: pathlib.Path) -> dict:
             "tipo": tipo, "cantidad": cantidad_final, "unidad": unidad,
             "cantidad_bruta": cantidad, "deduccion_huecos": round(deduccion, 2),
         })
+    # Deterministic rule-based extraction. Always runs; if a memoria
+    # doesn't have a numbered scope list (the common case for real PDFs)
+    # we still try to extract from:
+    #   (a) "Cuadro de superficies" tables → seed partidas from room area
+    #   (b) Inline scope verbs ("se demolerá", "se construirá", etc.)
+    # The technician reviews everything in the editor; rule output is
+    # tagged with _provenance so traza.md shows which rule fired.
+    if not items:
+        rooms = _extract_cuadro_superficies(text)
+        items.extend(_items_from_superficies(rooms))
+        items.extend(_items_from_inline_verbs(text))
+
     # Derived flags for regulatory rules (must be present on project-meta so
     # the engine can filter on them). Computed from the parsed scope-items.
     tipos = {it["tipo"] for it in items}
@@ -921,6 +1117,16 @@ def write_artefacts(out_dir: pathlib.Path,
     cuadros_precios.build_cuadro_nro2_pdf(
         out_dir / "cuadro_precios_nro2.pdf",
         firm=firm, meta=meta, partidas=partidas, ref=ref,
+        project_title=project_title,
+    )
+
+    # Presupuesto en XLSX (para Excel / LibreOffice / Google Sheets).
+    # 4 hojas: Presupuesto, Plan de acopios, Descompuesto, Banderas.
+    xlsx_export.build_presupuesto_xlsx(
+        out_dir / "presupuesto_cliente.xlsx",
+        firm=firm, meta=meta, totales=totales,
+        partidas=partidas, acopios=acopios, flags=flags,
+        capitulo_orden=capitulos, ref=ref,
         project_title=project_title,
     )
 

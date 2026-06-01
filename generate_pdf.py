@@ -183,8 +183,10 @@ def build() -> pathlib.Path:
 
     story.append(Paragraph("Lo que obtienes (descargables en la pantalla de resultado)", h2))
     deliverables_data = [
-        ("Presupuesto cliente",
-         "PDF con cabecera Rex Construcciones, capítulos, partidas, cuadro PEM → PEC → IVA → TOTAL."),
+        ("Presupuesto cliente (PDF)",
+         "Cabecera Rex Construcciones, capítulos, partidas, cuadro PEM → PEC → IVA → TOTAL."),
+        ("Presupuesto cliente (XLSX)",
+         "Mismo presupuesto en Excel · 4 hojas: presupuesto detallado, plan de acopios, descompuesto (Cuadro Nº 2) y banderas regulatorias."),
         ("Plan de obra",
          "PDF con calendario real (excluye fines de semana y festivos de Baleares) y diagrama de barras."),
         ("Cuadro de Precios Nº 1",
@@ -292,7 +294,28 @@ def build() -> pathlib.Path:
         body,
     ))
 
-    story.append(Paragraph("IA · activa en este servidor (y qué esperar)", h2))
+    story.append(Paragraph("Reglas deterministas primero · IA opcional", h2))
+    story.append(Paragraph(
+        "El parser ejecuta reglas deterministas <b>antes</b> de mirar la "
+        "IA. Para PDFs narrativos extrae (1) el cuadro de superficies "
+        "para sembrar solado, enlucido y pintura proporcionales al área "
+        "total; (2) verbos de obra inline como «se demolerá / se "
+        "construirá / se enlucirá... X m²». Sant Josep (240 pp, real) "
+        "produce así <b>PEM 42.588 € · TOTAL 55.748 €</b> sin tocar la "
+        "IA. La IA sólo entra como respaldo cuando el motor reglas "
+        "devuelve cero (memorias muy delgadas como Porreres).",
+        body,
+    ))
+    story.append(Paragraph(
+        "Modelo de gobierno: las reglas viven en <font face='Helvetica-"
+        "Oblique'>run_demo.SCOPE_VERBS / INLINE_SCOPE_VERBS / "
+        "SUPERFICIE_DERIVED_PARTIDAS</font>. La IA se usa <b>offline</b> "
+        "para proponer nuevas entradas cuando un formato nuevo aparece; "
+        "una vez añadidas, vuelven a ser deterministas para siempre.",
+        body,
+    ))
+
+    story.append(Paragraph("IA · respaldo opcional (y qué esperar)", h2))
     story.append(Paragraph(
         "Cuando subes una memoria narrativa (PDF sin lista numerada de "
         "partidas), el panel de resultados ofrece el botón <b>«Extraer "

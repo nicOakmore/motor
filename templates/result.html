@@ -81,14 +81,20 @@
   <div class="cta-row">
     {% if has_presup %}
       <a class="cta-tile" href="{{ url_for('download', job_id=job_id, filename='presupuesto_cliente.pdf') }}">
-        <span class="cta-label">Presupuesto</span>
-        <span class="cta-meta">PDF · capítulos, partidas y cuadro resumen</span>
+        <span class="cta-label">Presupuesto (PDF)</span>
+        <span class="cta-meta">capítulos, partidas y cuadro resumen</span>
+      </a>
+    {% endif %}
+    {% if 'presupuesto_cliente.xlsx' in artefacts %}
+      <a class="cta-tile" style="background:linear-gradient(135deg,#1f7a4d,#28815a)" href="{{ url_for('download', job_id=job_id, filename='presupuesto_cliente.xlsx') }}">
+        <span class="cta-label">Presupuesto (Excel)</span>
+        <span class="cta-meta">4 hojas: presupuesto · acopios · descompuesto · banderas</span>
       </a>
     {% endif %}
     {% if has_plan %}
       <a class="cta-tile" href="{{ url_for('download', job_id=job_id, filename='plan_de_obra.pdf') }}">
         <span class="cta-label">Plan de obra</span>
-        <span class="cta-meta">PDF · secuencia de capítulos y diagrama de barras</span>
+        <span class="cta-meta">PDF · calendario y diagrama de barras</span>
       </a>
     {% endif %}
   </div>
