@@ -37,7 +37,12 @@ GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 # budget — fits the longest prose memorias without hitting either limit.
 DEFAULT_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
 FALLBACK_MODEL = "llama-3.1-8b-instant"
-FALLBACK_MEMORIA_CHARS = 9_000
+# Fallback is hard-constrained: 8B has only 6 000 TPM. Subtracting the
+# fixed prompt overhead (catalogue ~3 500 t + system ~250 t + response
+# reserve 512 t), we have ~1 750 tokens for the memoria ≈ 7 000 chars.
+# Use 4 500 to keep some margin against catalogue growth.
+FALLBACK_MEMORIA_CHARS = 4_500
+FALLBACK_MAX_TOKENS = 512
 # Total prompt budget ≈ memoria + catalogue (~3 500 t) + system (~250 t)
 # + response (1 024 t) ≤ 12 000 t per call. 24 000 chars ≈ 6 000 tokens.
 MAX_MEMORIA_CHARS = 24_000
@@ -217,9 +222,9 @@ def _parse_proposals(content: str, allowed_tipos: set[str]) -> list[dict]:
 
 
 def _call_model(model: str, memoria_text: str, max_chars: int,
-                concepto_metadata: dict, api_key: str) -> str:
+                concepto_metadata: dict, api_key: str,
+                max_tokens: int = 1024) -> str:
     """One Groq API call. Returns the model's content string, or raises."""
-    # Temporarily override MAX_MEMORIA_CHARS for this build
     cleaned = _strip_toc(memoria_text)
     text = _slice_memoria(cleaned, max_chars)
     tipos = {k: v.get("descripcion_corta", "") for k, v in concepto_metadata.items()
@@ -232,7 +237,7 @@ def _call_model(model: str, memoria_text: str, max_chars: int,
     payload = {
         "model": model,
         "temperature": 0.1,
-        "max_tokens": 1024,
+        "max_tokens": max_tokens,
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -267,13 +272,14 @@ def extract_scope(memoria_text: str,
     api_key = os.environ["GROQ_API_KEY"].strip()
 
     attempts = [
-        (model or DEFAULT_MODEL, MAX_MEMORIA_CHARS),
-        (FALLBACK_MODEL,         FALLBACK_MEMORIA_CHARS),
+        (model or DEFAULT_MODEL, MAX_MEMORIA_CHARS,    1024),
+        (FALLBACK_MODEL,         FALLBACK_MEMORIA_CHARS, FALLBACK_MAX_TOKENS),
     ]
     last_error: Exception | None = None
-    for m, budget in attempts:
+    for m, budget, max_tok in attempts:
         try:
-            content = _call_model(m, memoria_text, budget, concepto_metadata, api_key)
+            content = _call_model(m, memoria_text, budget,
+                                  concepto_metadata, api_key, max_tok)
             if content:
                 proposals = _parse_proposals(content, set(concepto_metadata.keys()))
                 if proposals:
@@ -282,8 +288,6 @@ def extract_scope(memoria_text: str,
                 return []
         except RuntimeError as exc:
             msg = str(exc)
-            # Worth retrying with the fallback only if it's a transient
-            # quota / deprecation issue, not a network or auth failure.
             if any(k in msg for k in ("429", "413", "rate_limit", "decommissioned")):
                 last_error = exc
                 continue
