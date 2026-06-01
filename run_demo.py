@@ -438,8 +438,25 @@ def parse_memoria(path: pathlib.Path) -> dict:
         if m:
             emplazamiento = m.group(0).strip(" .,")
 
+    # Walk every numbered list item, joining any soft-wrapped continuation
+    # lines that belong to the same item. PDF text extraction frequently
+    # wraps long items mid-sentence; we need the measurement that lands on
+    # the second line ("…dormitorio secundario del / pasillo: 40 m²") to
+    # be visible to the regex below.
+    starts = [m.start() for m in re.finditer(r"^\s*\d+\.\s+", text, re.MULTILINE)]
+    item_bodies: list[str] = []
+    if starts:
+        boundaries = starts + [len(text)]
+        for s, e in zip(boundaries[:-1], boundaries[1:]):
+            block = text[s:e].rstrip()
+            block = re.sub(r"^\s*\d+\.\s+", "", block, count=1)
+            # Collapse soft-wrap newlines to spaces, preserve hard breaks
+            # between numbered items (already handled by slicing).
+            block = re.sub(r"\s*\n\s*", " ", block)
+            item_bodies.append(block)
+
     items = []
-    for body in ITEM_RE.findall(text):
+    for body in item_bodies:
         # strip markdown emphasis; whole-body search so qualifiers that follow
         # the measurement (e.g. "12 m² de tabique de ladrillo hueco doble")
         # still influence routing.

@@ -33,29 +33,29 @@ REPO_RAW = "https://raw.githubusercontent.com/nicOakmore/motor/main/memorias"
 
 SAMPLES = [
     ("memoria_santa_eulalia.md",
-     "Reforma vivienda urbana Santa Eulària (Ibiza)",
-     "Ejemplo sencillo en Markdown: tabique, enlucido, pintura, solado. "
-     "Vivienda habitual, no requiere proyecto técnico."),
+     "Reforma vivienda urbana Santa Eulària (Markdown)",
+     "Ejemplo sencillo: tabique, enlucido, pintura, solado. Vivienda "
+     "habitual, NO requiere proyecto técnico. <b>PEM 3.126,40 €</b>, "
+     "TOTAL 4.092,45 €."),
     ("memoria_rustico_ibiza.md",
-     "Ampliación en finca rústica Ibiza",
-     "Suelo rústico → dispara la bandera STOP. Requiere proyecto técnico, "
-     "se generan los 4 anexos regulatorios."),
+     "Ampliación en finca rústica Ibiza (Markdown)",
+     "Suelo rústico → STOP. Requiere proyecto técnico, se generan los 4 "
+     "anexos regulatorios. <b>PEM 3.837,50 €</b>, TOTAL 5.023,29 €."),
     ("memoria_finca_turistica.md",
-     "Finca para alquiler turístico San Antonio",
-     "Cubierta + fachada + uso turístico — dispara 6 banderas (turístico, "
-     "rústico/proyecto, accesibilidad, eficiencia, ruido, IVA)."),
-    ("santjosep_ibiza.pdf",
-     "Proyecto Sant Josep de sa Talaia (PDF real, 240 pp)",
-     "Memoria oficial de un proyecto básico y de ejecución. Demuestra la "
-     "extracción automática de promotor, emplazamiento y régimen."),
-    ("porreres_mallorca.pdf",
-     "Cambio de uso a agroturismo Porreres (PDF real)",
-     "Suelo rústico detectado por el patrón polígono / parcelas; "
-     "promotor extraído de un layout multilínea."),
-    ("coac_grancanaria.pdf",
-     "Plantilla COAC vivienda unifamiliar (PDF)",
-     "Plantilla CTE: prueba que el motor extrae datos también de "
-     "formularios genéricos."),
+     "Finca para alquiler turístico San Antonio (Markdown)",
+     "Cubierta + fachada + uso turístico → dispara las 6 banderas. "
+     "<b>PEM 22.904,90 €</b>, TOTAL 29.982,51 €."),
+    ("memoria_santa_eulalia.pdf",
+     "Igual que la anterior, en formato PDF",
+     "El mismo contenido renderizado a PDF para demostrar que el motor "
+     "extrae partidas también de PDFs estructurados."),
+    ("memoria_rustico_ibiza.pdf",
+     "Igual que la rústica, en formato PDF",
+     "El mismo contenido en PDF — dispara la bandera STOP rústico y "
+     "genera los 4 anexos regulatorios."),
+    ("memoria_finca_turistica.pdf",
+     "Igual que la turística, en formato PDF",
+     "El mismo contenido en PDF — dispara las 6 banderas regulatorias."),
 ]
 
 
