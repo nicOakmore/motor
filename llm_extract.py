@@ -29,13 +29,13 @@ import urllib.request
 
 
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
-# Groq free-tier daily quotas (June 2026):
-#   llama-3.3-70b-versatile  →  12 000 TPM   100 000 TPD  (smartest)
-#   llama-3.1-8b-instant     →  30 000 TPM   500 000 TPD  (5× per-day budget)
-#   gemma2-9b-it             →  14 000 TPM   500 000 TPD
-# Default to 8b-instant so demos don't hit the daily cap; user can flip
-# to the 70B via env override when they want maximum quality.
-DEFAULT_MODEL = os.environ.get("LLM_MODEL", "llama-3.1-8b-instant")
+# Groq free-tier quotas (measured June 2026):
+#   llama-3.3-70b-versatile  → 12 000 TPM,  100 000 TPD  (smartest, capped TPD)
+#   llama-3.1-8b-instant     →  6 000 TPM,  500 000 TPD  (small TPM, big TPD)
+#   gemma2-9b-it             → 14 000 TPM,  500 000 TPD  (best of both)
+# Default to gemma2-9b-it: the highest TPM available AND the higher TPD
+# budget — fits the longest prose memorias without hitting either limit.
+DEFAULT_MODEL = os.environ.get("LLM_MODEL", "gemma2-9b-it")
 # Total prompt budget ≈ memoria + catalogue (~3 500 t) + system (~250 t)
 # + response (1 024 t) ≤ 12 000 t per call. 24 000 chars ≈ 6 000 tokens.
 MAX_MEMORIA_CHARS = 24_000
