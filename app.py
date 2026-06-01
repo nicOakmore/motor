@@ -42,7 +42,7 @@ JOBS_ROOT = pathlib.Path(
 )
 JOBS_ROOT.mkdir(parents=True, exist_ok=True)
 
-ALLOWED_EXT = {".md", ".txt", ".pdf"}
+ALLOWED_EXT = {".md", ".txt", ".pdf", ".bc3"}
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024     # 8 MB — fits PDF memorias with images
 
 
@@ -106,9 +106,10 @@ def _job_dir(job_id: str) -> pathlib.Path:
 
 
 def _list_samples() -> list[pathlib.Path]:
-    md = list(SAMPLE_MEMORIAS_DIR.glob("*.md"))
-    pdf = list(SAMPLE_MEMORIAS_DIR.glob("*.pdf"))
-    return sorted(md + pdf)
+    paths = []
+    for ext in ("*.md", "*.pdf", "*.bc3"):
+        paths.extend(SAMPLE_MEMORIAS_DIR.glob(ext))
+    return sorted(paths)
 
 
 def _ensure_pdf() -> pathlib.Path:

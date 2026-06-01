@@ -296,6 +296,48 @@ def parse_memoria(path: pathlib.Path) -> dict:
         head,
     ))
 
+    # --- Auto-detect requiere_proyecto from prose. ---
+    # If the markdown sample explicitly says "REQUIERE PROYECTO TÉCNICO"
+    # (and isn't preceded by "no"), that wins. Otherwise, treat any of the
+    # following title-page patterns as evidence: "PROYECTO BÁSICO",
+    # "PROYECTO DE EJECUCIÓN", "PROYECTO BÁSICO Y DE EJECUCIÓN", "PROYECTO
+    # TÉCNICO" — these documents only exist *because* the work requires a
+    # proyecto técnico under LOE 38/1999.
+    head_text = text[:HEAD_LEN]
+    head_no_accent = head_text.upper()
+    if not requiere_proyecto:
+        if re.search(
+            r"\bPROYECTO\s+(?:B[ÁA]SICO(?:\s+Y\s+DE\s+EJECUCI[ÓO]N)?"
+            r"|DE\s+EJECUCI[ÓO]N|T[ÉE]CNICO)\b",
+            head_no_accent,
+        ):
+            requiere_proyecto = True
+
+    # --- Auto-detect suelo from prose. ---
+    # Real PDFs rarely use the markdown "**Suelo:** **rústico**" syntax.
+    # Recognise explicit declarations (suelo rústico / urbano / urbanizable)
+    # plus strong Ibiza/Balearic signals: SRC = Suelo Rústico Común, ANEI,
+    # ARIP (Áreas Naturales / Rural de Interés Paisajístico), and the
+    # "polígono X parcela Y" pattern that's the cadastral identifier of
+    # rural land in Spain.
+    suelo_auto = None
+    if any(p in head for p in (
+        "suelo rústico", "suelo rustico", "suelo rústico común",
+        "rústico común", "rustico comun", "anei", "arip",
+    )) or re.search(r"\b(?:SRC|SRP)\b", head_no_accent):
+        suelo_auto = "rustico"
+    elif re.search(
+        r"pol[ií]gono\s+\d+[,.\s]*parcelas?\s+\d",
+        head, re.IGNORECASE,
+    ):
+        suelo_auto = "rustico"
+    elif any(p in head for p in (
+        "suelo urbano consolidado", "suelo urbano", "urbano consolidado",
+    )) or re.search(r"\b(?:SU|SUC|SU-NC|SUNC)\b", head_no_accent):
+        suelo_auto = "urbano"
+    if suelo_auto is not None and suelo == "urbano":
+        suelo = suelo_auto
+
     # Real proyectos run to hundreds of pages and reuse the same labels in
     # legal clauses ("…el promotor: a las normas…"). Bias the search to the
     # title-page region (first ~12 pages, ~10 000 chars). Values may live on
@@ -336,6 +378,26 @@ def parse_memoria(path: pathlib.Path) -> dict:
     emplazamiento = _grab(["Emplazamiento", "Ubicación", "Ubicacion",
                             "Situación", "Situacion",
                             "Dirección de obra", "Dirección"])
+
+    # --- Address fallback for label-less PDF layouts ---
+    # When no EMPLAZAMIENTO/UBICACIÓN label is present, try common Spanish
+    # address signatures in the title region:
+    #   1) Postal code + town  →  "07820 SAN ANTONIO"  /  "07800 IBIZA"
+    #   2) Polígono / parcelas →  "POLÍGONO 1, PARCELAS 143-182-183"
+    if not emplazamiento:
+        m = re.search(
+            r"\b(0[6-7]\d{3})\s+([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚáéíóúñ \-.,]{2,60})",
+            header,
+        )
+        if m:
+            emplazamiento = (m.group(1) + " " + m.group(2)).strip(" .,")
+    if not emplazamiento:
+        m = re.search(
+            r"pol[ií]gono\s+\d+[,.\s]*parcelas?\s+[\d\-,\s]{1,40}",
+            header, re.IGNORECASE,
+        )
+        if m:
+            emplazamiento = m.group(0).strip(" .,")
 
     items = []
     for body in ITEM_RE.findall(text):
@@ -887,10 +949,70 @@ def recompute_totales(partidas: list[dict], rules_spec: dict) -> dict:
     return engine.compute_presupuesto(wm)
 
 
+def _ingest_bc3(memoria_path: pathlib.Path,
+                rules_spec: dict, wm: engine.WorkingMemory) -> dict:
+    """When the input is a .bc3 export from Presto/Arquímedes/CYPE, we
+    bypass the memoria parser and load partidas directly. Returns a
+    parsed-shaped dict so the rest of the pipeline is identical."""
+    text = memoria_path.read_text(encoding="latin-1", errors="replace")
+    parsed_bc3 = bc3.parse_bc3_full(text)
+    bc3_partidas = parsed_bc3["partidas"]
+
+    # Reasonable defaults — the BC3 has no memoria meta. The editor can
+    # override; regulatory flags will fire from these where applicable.
+    meta = {
+        "memoria": memoria_path.name,
+        "suelo": "urbano",
+        "requiere_proyecto": len(bc3_partidas) >= 25,
+        "uso": rules_spec.get("parameters", {}).get("uso", "vivienda_habitual"),
+        "uso_turistico": False,
+        "incluye_demoliciones": any(
+            "demolic" in (p.get("descripcion", "").lower())
+            for p in bc3_partidas),
+        "toca_envolvente": any(
+            any(k in (p.get("descripcion", "").lower())
+                for k in ("cubierta", "fachada", "carpinter", "aislamiento"))
+            for p in bc3_partidas),
+        "promotor": parsed_bc3["header"].get("propiedad", "") or "",
+        "emplazamiento": parsed_bc3["header"].get("cabecera", "") or "",
+    }
+
+    # project-meta drives regulatory rules.
+    wm.assert_fact("project-meta", {
+        "memoria": meta["memoria"],
+        "suelo": meta["suelo"],
+        "requiere_proyecto": meta["requiere_proyecto"],
+        "uso": meta["uso"],
+        "uso_turistico": meta["uso_turistico"],
+        "incluye_demoliciones": meta["incluye_demoliciones"],
+        "toca_envolvente": meta["toca_envolvente"],
+    }, produced_by="ingesta_bc3")
+
+    # Inject the BC3 partidas straight into working memory.
+    for i, p in enumerate(bc3_partidas, start=1):
+        wm.assert_fact("partida", {
+            "code": p.get("code") or f"P{i:03d}",
+            "capitulo": p.get("capitulo", "Sin capítulo"),
+            "descripcion": p.get("descripcion", ""),
+            "unidad": p.get("unidad", "ud"),
+            "medicion": p.get("medicion", 0),
+            "precio_unitario": p.get("precio_unitario", 0),
+            "importe": p.get("importe", 0),
+            "mo_pu": p.get("mo_pu", 0),
+            "mat_pu": p.get("mat_pu", 0),
+            "maq_pu": p.get("maq_pu", 0),
+            "indirectos_pct": p.get("indirectos_pct", 0.06),
+            "price_ref": p.get("price_ref", ""),
+            "descompuesto": p.get("descompuesto", []),
+        }, produced_by="ingesta_bc3")
+
+    return {"meta": meta, "items": [], "bc3_partidas": bc3_partidas}
+
+
 def run_for_memoria(memoria_path: pathlib.Path,
                     out_root: pathlib.Path | None = None,
                     verbose: bool = True) -> dict:
-    """Run the full pipeline for one memoria.
+    """Run the full pipeline for one memoria (or a BC3 export).
 
     Returns {out_dir, totales, flags, partidas, meta} so callers (CLI or web)
     can render however they like. out_root defaults to ./salidas/.
@@ -905,6 +1027,54 @@ def run_for_memoria(memoria_path: pathlib.Path,
         rules_spec = json.load(fh)
 
     engine.load_rules(str(ROOT / "rules.json"), eng)
+
+    # ---- Branch: BC3 file → partidas direct; everything else → memoria parser
+    if memoria_path.suffix.lower() == ".bc3":
+        parsed = _ingest_bc3(memoria_path, rules_spec, wm)
+        # Run regulatory rules now that project-meta + partidas are present.
+        eng.run()
+        # Skip the binding step (BC3 already carries priced partidas).
+        for price in load_price_catalogue():
+            for k in ("mo", "mat", "maq", "indirectos_pct"):
+                try:
+                    price[k] = float(price.get(k) or 0.0)
+                except (TypeError, ValueError):
+                    price[k] = 0.0
+            wm.assert_fact("price", price, produced_by="ingesta_precios")
+        explode_material_lines(wm, load_material_lines())
+        eng.run()
+        totales = engine.compute_presupuesto(wm)
+        plan = engine.compute_plan_acopios(wm)
+        flags = [f.data for f in wm.query("flag")]
+        partidas_out = [f.data for f in wm.query("partida")]
+        out_dir = out_root / memoria_path.stem
+        out_dir.mkdir(parents=True, exist_ok=True)
+        trace_rows = [{"id": f._id, "kind": f.kind, "produced_by": f.produced_by,
+                       "data": f.data} for f in wm.all()]
+        flags_with_rule = [f.data | {"rule": f.produced_by}
+                            for f in wm.query("flag")]
+        write_artefacts(
+            out_dir=out_dir, meta=parsed["meta"], partidas=partidas_out,
+            totales=totales, flags=flags_with_rule, acopios=plan,
+            trace_rows=trace_rows, rules_spec=rules_spec,
+        )
+        if verbose:
+            print(f"  Partidas: {len(partidas_out)}")
+            print(f"  PEM:   {totales['PEM']:>12,.2f} EUR")
+            print(f"  PEC:   {totales['PEC']:>12,.2f} EUR")
+            print(f"  TOTAL: {totales['TOTAL']:>12,.2f} EUR")
+            print(f"  Flags: {len(flags)}")
+            for f in flags:
+                print(f"    [{f['nivel']}] {f['codigo']}")
+            try:
+                rel = out_dir.relative_to(ROOT)
+            except ValueError:
+                rel = out_dir
+            print(f"  -> output written to {rel}/")
+        return {
+            "out_dir": out_dir, "meta": parsed["meta"], "totales": totales,
+            "flags": flags, "partidas": partidas_out, "acopios": plan,
+        }
 
     parsed = parse_memoria(memoria_path)
 
@@ -1015,7 +1185,9 @@ def main() -> int:
     SALIDAS.mkdir(exist_ok=True)
     args = [pathlib.Path(p) for p in sys.argv[1:]]
     if not args:
-        args = sorted(list(MEMORIAS.glob("*.md")) + list(MEMORIAS.glob("*.pdf")))
+        args = sorted(list(MEMORIAS.glob("*.md")) +
+                      list(MEMORIAS.glob("*.pdf")) +
+                      list(MEMORIAS.glob("*.bc3")))
     if not args:
         print("No memorias found. Drop one into ./memorias/ and re-run.")
         return 1

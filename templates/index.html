@@ -27,14 +27,15 @@
 <section class="card">
   <h2>2 · O sube la tuya</h2>
   <form action="{{ url_for('run') }}" method="post" enctype="multipart/form-data" class="row-form">
-    <input type="file" name="memoria" accept=".md,.txt,.pdf" required>
+    <input type="file" name="memoria" accept=".md,.txt,.pdf,.bc3" required>
     <button type="submit" class="primary">Procesar memoria</button>
   </form>
   <p class="muted">
-    Formatos: <code>.md</code>, <code>.txt</code>, <code>.pdf</code>. Tamaño máximo 8 MB.
-    El parser reconoce ítems numerados con verbo + medición
-    (p. ej. <em>«3. Enlucido de yeso: <strong>80 m²</strong>»</em>).
-    Los PDF se extraen con pdfplumber; los escaneados sin texto OCR no se procesan.
+    Formatos: <code>.md</code>, <code>.txt</code>, <code>.pdf</code>,
+    <code>.bc3</code> (FIEBDC-3 export de Presto / Arquímedes / CYPE).
+    Tamaño máximo 8 MB. El parser de memorias reconoce ítems numerados con
+    verbo + medición (p. ej. <em>«3. Enlucido de yeso: <strong>80 m²</strong>»</em>);
+    en BC3 se leen directamente capítulos, partidas, descompuestos y mediciones.
   </p>
 </section>
 
