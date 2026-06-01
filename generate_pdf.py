@@ -57,19 +57,20 @@ SAMPLES = [
      "El mismo contenido en PDF — dispara las 6 banderas regulatorias."),
     ("santjosep_ibiza.pdf",
      "Proyecto Sant Josep de sa Talaia · PDF real (240 pp)",
-     "Memoria oficial de un Ayuntamiento. Narrativa pura, sin scope "
-     "numerado. El parser saca metadata y la <b>IA propone partidas</b> "
-     "contra el catálogo. En la última corrida: PEM 90.667,90 € · TOTAL "
-     "118.684,28 €."),
+     "Memoria oficial de Ayuntamiento, narrativa pura sin scope numerado. "
+     "El parser saca metadata y la IA propone 2 partidas-candidato del "
+     "catálogo (cubierta y pavimento). El técnico las revisa o sustituye "
+     "en el editor — la IA no firma el presupuesto."),
     ("porreres_mallorca.pdf",
      "Cambio a agroturismo Porreres · PDF real",
-     "Memoria de cambio de uso (agroturismo). Suelo rústico detectado "
-     "automáticamente del patrón polígono/parcela. Aplica también la "
-     "IA si la prosa no rinde partidas directamente."),
+     "Memoria delgada — 90 páginas de referencias regulatorias "
+     "(CTE-DB-XX, Decretos) sin descripción de obra. La IA devuelve "
+     "«sin propuestas» (correcto): el técnico añade partidas en el "
+     "editor o sube el BC3 con las mediciones."),
     ("coac_grancanaria.pdf",
      "Plantilla COAC vivienda · PDF real",
-     "Plantilla CTE genérica. Demuestra que el motor extrae también de "
-     "formularios estandarizados."),
+     "Plantilla CTE genérica. Demuestra extracción de metadata desde "
+     "formularios estandarizados; el alcance lo añade el técnico."),
 ]
 
 
@@ -310,19 +311,23 @@ def build() -> pathlib.Path:
         body,
     ))
     story.append(Paragraph(
-        "<b>(1) PEM real con partidas concretas.</b> La memoria describe "
-        "trabajos con mediciones inferibles. Sant Josep (240 pp) pasa de "
-        "0 € a ~118.000 € con 10–15 partidas reales en este flujo.",
+        "<b>(1) Candidatos para revisar.</b> Cuando la memoria contiene "
+        "verbos constructivos asociados a mediciones, la IA propone "
+        "2–10 partidas-candidato del catálogo con su medición. El "
+        "técnico SIEMPRE las revisa en el editor antes de enviar al "
+        "cliente: la IA puede confundir superficies útiles con partidas "
+        "y emparejar números con tipos plausibles. Tratar la salida como "
+        "<b>borrador en horas de trabajo</b>, no como presupuesto final.",
         body,
     ))
     story.append(Paragraph(
         "<b>(2) PEM = 0,00 € y aviso «sin propuestas».</b> La memoria es "
         "una compilación de referencias regulatorias (CTE-DB-XX, RD, "
-        "Decretos) sin descripción suficiente del alcance — es el caso "
-        "de muchos proyectos básicos delgados (ej. Porreres). La IA "
-        "rehúsa fabricar números: ésa es la <b>garantía de auditoría</b>. "
-        "En ese momento usa el editor para añadir partidas del catálogo "
-        "o sube el BC3 si el técnico ya tiene las mediciones.",
+        "Decretos) sin descripción suficiente del alcance — el caso "
+        "típico de muchos proyectos básicos delgados (ej. Porreres). "
+        "La IA rehúsa fabricar números: ésa es la <b>garantía de "
+        "auditoría</b>. Continuar por el editor (catálogo de 111 "
+        "partidas) o subir el BC3 si el técnico ya tiene las mediciones.",
         body,
     ))
     story.append(Paragraph(
@@ -334,8 +339,13 @@ def build() -> pathlib.Path:
         body,
     ))
     story.append(Paragraph(
-        "La IA se puede apagar al instante desde Render → Environment → "
-        "<code>LLM_ENABLED=false</code> sin redeploy.",
+        "Determinismo: el sistema corre la IA a <code>temperature=0</code>; "
+        "el mismo memoria produce las mismas propuestas en cada ejecución. "
+        "Las propuestas duplicadas (la IA tiende a generar una entrada por "
+        "habitación) se consolidan automáticamente en una sola partida "
+        "por tipo, sumando las mediciones. La IA se apaga al instante "
+        "desde Render → Environment → <code>LLM_ENABLED=false</code> "
+        "sin redeploy.",
         body,
     ))
 
