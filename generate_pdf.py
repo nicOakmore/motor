@@ -62,6 +62,13 @@ def build() -> pathlib.Path:
         "línea del alcance: si no se puede trazar, el sistema no lo emite.",
         body,
     ))
+    story.append(Paragraph(
+        "<b>Demo en vivo:</b> "
+        "<font color='#1a3a5c'>https://motor-presupuestos.onrender.com</font> — "
+        "sube una memoria o usa una de muestra y descarga el presupuesto, el "
+        "plan de acopios, el checklist regulatorio y la exportación BC3.",
+        body,
+    ))
 
     story.append(Paragraph("Arquitectura en cinco capas", h2))
     # Paragraph styles for table cells (Table strings don't word-wrap).
@@ -141,10 +148,10 @@ def build() -> pathlib.Path:
 
     story.append(Paragraph("Flujo de trabajo", h2))
     wf_rows = [
-        ("1", "Soltar la memoria en ./memorias/ (texto/PDF/Markdown)."),
-        ("2", "Soltar precios negociados en ./precios/ (BC3/XLSX/CSV). Ámbito Balears/Ibiza primero."),
-        ("3", "Ejecutar: python run_demo.py memorias/&lt;archivo&gt;"),
-        ("4", "Recoger en ./salidas/&lt;archivo&gt;/: presupuesto.md, presupuesto.json, plan_acopios.csv, flags.md, traza.md, presupuesto.bc3"),
+        ("1", "Abrir <b>https://motor-presupuestos.onrender.com</b> en el navegador."),
+        ("2", "Elegir una memoria de muestra o subir la propia (.md / .txt)."),
+        ("3", "El motor genera el presupuesto y muestra el cuadro resumen, las partidas por capítulo, el plan de acopios y las banderas regulatorias."),
+        ("4", "Descargar los artefactos: presupuesto.md / .json, plan_acopios.csv, flags.md, traza.md, presupuesto.bc3 (FIEBDC-3)."),
         ("5", "Trazar cualquier euro: traza.md → partida → price_ref + scope_ref + regla que lo produjo."),
     ]
     workflow_data = [[Paragraph(n, cell_sb), Paragraph(t, cell_s)] for n, t in wf_rows]

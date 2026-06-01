@@ -116,7 +116,7 @@ def run():
     if upload and upload.filename:
         name = secure_filename(upload.filename) or "memoria.md"
         if pathlib.Path(name).suffix.lower() not in ALLOWED_EXT:
-            return _err("Unsupported format. Upload .md or .txt.", 400)
+            return _err("Formato no permitido. Sube .md o .txt.", 400)
         src_path = inbox / name
         upload.save(src_path)
     elif sample:
@@ -124,17 +124,17 @@ def run():
         sample_path = SAMPLE_MEMORIAS_DIR / secure_filename(sample)
         if not sample_path.is_file() or sample_path.parent.resolve() != \
                 SAMPLE_MEMORIAS_DIR.resolve():
-            return _err("Unknown sample.", 400)
+            return _err("Muestra desconocida.", 400)
         src_path = inbox / sample_path.name
         shutil.copy2(sample_path, src_path)
     else:
-        return _err("Upload a memoria or pick a sample.", 400)
+        return _err("Sube una memoria o elige una de muestra.", 400)
 
     out_root = job_root / "salidas"
     try:
         result = run_demo.run_for_memoria(src_path, out_root=out_root, verbose=False)
     except Exception as exc:                          # noqa: BLE001
-        return _err(f"Failed to process the memoria: {exc}", 500)
+        return _err(f"Fallo al procesar la memoria: {exc}", 500)
 
     # Persist a tiny manifest for the result page (don't re-run the engine).
     manifest = {
@@ -207,6 +207,23 @@ def healthz():
     return jsonify(status="ok")
 
 
+@app.get("/robots.txt")
+def robots():
+    # Block all crawlers, both well-behaved (robots.txt) and via X-Robots-Tag header.
+    body = "User-agent: *\nDisallow: /\n"
+    resp = app.response_class(body, mimetype="text/plain")
+    resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
+    return resp
+
+
+@app.after_request
+def _block_crawlers(resp):
+    # Belt-and-suspenders: send X-Robots-Tag on every response, in case some
+    # crawler ignores robots.txt but honours the header.
+    resp.headers.setdefault("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet")
+    return resp
+
+
 # --------------------------------------------------------------------------
 # Errors
 # --------------------------------------------------------------------------
@@ -217,7 +234,7 @@ def _err(msg: str, code: int = 400):
 
 @app.errorhandler(413)
 def too_large(_):
-    return _err(f"File too large (max {MAX_UPLOAD_BYTES // 1024} KB).", 413)
+    return _err(f"Archivo demasiado grande (máx {MAX_UPLOAD_BYTES // 1024} KB).", 413)
 
 
 if __name__ == "__main__":

@@ -81,7 +81,7 @@
       "_doc": "LUIB 12/2017 art.146 + LOE 38/1999: a work that needs a technical project requires prior municipal licence.",
       "when": { "kind": "project-meta", "filters": { "requiere_proyecto": true } },
       "then": { "assert": { "kind": "flag",
-        "data": { "nivel": "WARN", "codigo": "LICENCIA_PREVIA", "mensaje": "Prior municipal urban-planning licence required (LUIB art.146). Mandatory annexes: Health & Safety study (RD 1627/1997), Construction & Demolition waste plan (RD 105/2008), CTE quality-control plan, and project schedule." } } }
+        "data": { "nivel": "WARN", "codigo": "LICENCIA_PREVIA", "mensaje": "Obra sujeta a licencia urbanística municipal previa (LUIB art.146). Anexos obligatorios: Estudio de Seguridad y Salud (RD 1627/1997), Plan de gestión de RCD (RD 105/2008), Plan de control de calidad CTE y plan de obra." } } }
     },
     {
       "name": "REG_rustico_riesgo",
@@ -90,7 +90,7 @@
       "_doc": "Rural land in Ibiza is high-risk. The rule only raises a flag; it never asserts legality.",
       "when": { "kind": "project-meta", "filters": { "suelo": "rustico" } },
       "then": { "assert": { "kind": "flag",
-        "data": { "nivel": "STOP", "codigo": "RUSTICO_REVISAR", "mensaje": "Rural land in Ibiza: requires prior technical / legal review (Ley 7/2024, regularisation regimes). Do not budget without verifying the applicable regime." } } }
+        "data": { "nivel": "STOP", "codigo": "RUSTICO_REVISAR", "mensaje": "Suelo rústico en Ibiza: requiere revisión técnica/jurídica previa (Ley 7/2024, regímenes de legalización). No presupuestar sin verificar el régimen aplicable." } } }
     },
     {
       "name": "REG_iva_reducido",
@@ -99,7 +99,7 @@
       "_doc": "Reduced 10% IVA only applies to primary residence (Ley 37/1992 art.91.uno.2). Remind the technician to verify eligibility.",
       "when": { "kind": "project-param", "filters": { "clave": "uso", "valor": "vivienda_habitual" } },
       "then": { "assert": { "kind": "flag",
-        "data": { "nivel": "INFO", "codigo": "IVA_REDUCIDO_10", "mensaje": "Reduced 10% IVA applied for primary-residence use (Ley 37/1992 art.91.uno.2). Verify that the project meets the eligibility requirements." } } }
+        "data": { "nivel": "INFO", "codigo": "IVA_REDUCIDO_10", "mensaje": "IVA reducido del 10% aplicado por uso vivienda habitual (Ley 37/1992 art.91.uno.2). Verificar que el proyecto cumple los requisitos." } } }
     }
   ]
 }

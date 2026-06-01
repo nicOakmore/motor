@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Result — {{ manifest.memoria_name }}{% endblock %}
+{% block title %}Resultado — {{ manifest.memoria_name }}{% endblock %}
 {% block content %}
 
 {% set t = manifest.totales %}
 {% set meta = manifest.meta %}
 
 <section class="hero">
-  <h1>Result: <small>{{ manifest.memoria_name }}</small></h1>
+  <h1>Resultado: <small>{{ manifest.memoria_name }}</small></h1>
   <p class="muted">
-    Land <strong>{{ meta.suelo }}</strong> ·
-    Use <strong>{{ meta.uso }}</strong> ·
-    Technical project <strong>{{ 'yes' if meta.requiere_proyecto else 'no' }}</strong>
+    Suelo <strong>{{ meta.suelo }}</strong> ·
+    Uso <strong>{{ meta.uso }}</strong> ·
+    Proyecto técnico <strong>{{ 'sí' if meta.requiere_proyecto else 'no' }}</strong>
   </p>
 </section>
 
 <section class="card totals">
-  <h2>Summary (RD 1098/2001)</h2>
+  <h2>Cuadro resumen (RD 1098/2001)</h2>
   <table class="totals-table">
     <tbody>
       <tr><td>PEM</td><td class="num">{{ t.PEM | eur }}</td></tr>
@@ -24,14 +24,14 @@
       <tr class="emph"><td>PEC</td><td class="num">{{ t.PEC | eur }}</td></tr>
       <tr><td>IVA ({{ (t.iva_pct * 100) | round(0, 'floor') | int }}%)</td><td class="num">{{ t.IVA | eur }}</td></tr>
       <tr class="grand"><td>TOTAL</td><td class="num">{{ t.TOTAL | eur }}</td></tr>
-      <tr class="muted"><td>ICIO (indicative, on PEM)</td><td class="num">{{ t.ICIO | eur }}</td></tr>
+      <tr class="muted"><td>ICIO (orientativo, sobre PEM)</td><td class="num">{{ t.ICIO | eur }}</td></tr>
     </tbody>
   </table>
 </section>
 
 {% if manifest.flags %}
 <section class="card flags">
-  <h2>Regulatory checklist</h2>
+  <h2>Checklist regulatorio</h2>
   {% for f in manifest.flags %}
     <div class="flag flag-{{ f.nivel | lower }}">
       <strong>[{{ f.nivel }}] {{ f.codigo }}</strong>
@@ -42,14 +42,14 @@
 {% endif %}
 
 <section class="card">
-  <h2>Partidas by capítulo</h2>
+  <h2>Partidas por capítulo</h2>
   {% for cap, partidas in grouped %}
     <h3 class="cap">{{ cap }}</h3>
     <table class="partidas">
       <thead>
         <tr>
-          <th>Code</th><th>Description</th><th>Unit</th>
-          <th class="num">Quantity</th><th class="num">Unit price</th><th class="num">Amount</th>
+          <th>Code</th><th>Descripción</th><th>Ud</th>
+          <th class="num">Medición</th><th class="num">Precio ud</th><th class="num">Importe</th>
         </tr>
       </thead>
       <tbody>
@@ -76,10 +76,10 @@
 
 {% if manifest.acopios %}
 <section class="card">
-  <h2>Procurement plan</h2>
+  <h2>Plan de acopios</h2>
   <table class="partidas">
     <thead>
-      <tr><th>Material</th><th>Description</th><th>Unit</th><th class="num">Quantity</th></tr>
+      <tr><th>Material</th><th>Descripción</th><th>Ud</th><th class="num">Cantidad</th></tr>
     </thead>
     <tbody>
       {% for a in manifest.acopios %}
@@ -96,7 +96,7 @@
 {% endif %}
 
 <section class="card downloads">
-  <h2>Downloads</h2>
+  <h2>Descargas</h2>
   <ul class="downloads-list">
     {% for name in artefacts %}
       <li>
@@ -106,6 +106,6 @@
   </ul>
 </section>
 
-<p><a class="back" href="{{ url_for('index') }}">← Process another memoria</a></p>
+<p><a class="back" href="{{ url_for('index') }}">← Procesar otra memoria</a></p>
 
 {% endblock %}

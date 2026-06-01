@@ -1,19 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Construction Budget Engine{% endblock %}</title>
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+  <meta name="googlebot" content="noindex, nofollow">
+  <title>{% block title %}Motor de Presupuestos{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <header>
     <div class="wrap">
       <a class="brand" href="{{ url_for('index') }}">
-        Construction Budget Engine
+        Motor de Presupuestos
       </a>
       <nav>
-        <a href="{{ url_for('how_pdf') }}">How it works (PDF, Spanish)</a>
+        <a href="{{ url_for('how_pdf') }}">Cómo funciona (PDF)</a>
       </nav>
     </div>
   </header>
@@ -24,8 +26,8 @@
 
   <footer class="wrap">
     <small>
-      Sample app. RD 1098/2001 · Ley 37/1992 · LUIB 12/2017.
-      Generated budgets are indicative; they require validation by a qualified technician.
+      Demo. RD 1098/2001 · Ley 37/1992 · LUIB 12/2017.
+      Los presupuestos generados son orientativos: requieren validación técnica.
     </small>
   </footer>
 </body>
