@@ -31,10 +31,40 @@ import urllib.request
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_MODEL = os.environ.get("LLM_MODEL", "llama-3.3-70b-versatile")
 # Cap the memoria payload so we stay inside Groq's free-tier per-minute
-# token budget. Real PDFs that survive our 60-page parser cap will still
-# fit; long technical annexes get truncated.
-MAX_MEMORIA_CHARS = 12_000
-REQUEST_TIMEOUT = 45        # seconds
+# token budget. 40 000 chars ≈ 10 000 tokens — fits inside the per-call
+# budget while leaving room for the catalogue list and the response.
+MAX_MEMORIA_CHARS = 40_000
+REQUEST_TIMEOUT = 60        # seconds
+
+
+# Lines that look like a table of contents: numbered chapter heading
+# followed by no body text. We strip them before sending to the LLM so
+# the model sees descriptive content instead of an endless index.
+_TOC_PREFIX_RE = re.compile(
+    r"^\s*(?:[IVX]+\.\d?|\d+(?:\.\d+){0,4})\s+[A-ZÁÉÍÓÚÑ ]{4,}\s*$"
+)
+# A run of lines that look like a TOC + the page references next to them.
+_TOC_LINE_RE = re.compile(
+    r"^\s*(?:[IVX]+\.\d?|\d+(?:\.\d+){0,4})\s+.+?(?:\.{2,}|\s)\d{1,4}\s*$"
+)
+# Lines that are a digital-signature noise line we want to drop.
+_NOISE_RE = re.compile(r"^\s*[A-F0-9]{20,}\s*$|^\s*\d{2}\.\d{2}\.\d{4}\s+\d+/\d+/\d+\s*$")
+
+
+def _strip_toc(text: str) -> str:
+    """Remove table-of-contents lines and signature noise so the LLM sees
+    descriptive prose, not an index."""
+    out: list[str] = []
+    for ln in text.splitlines():
+        if _NOISE_RE.match(ln) or _TOC_PREFIX_RE.match(ln) or _TOC_LINE_RE.match(ln):
+            continue
+        # Lines with only a chapter number (e.g. "I.2") aren't useful either.
+        if re.match(r"^\s*[IVX]+\.\d?\s*$", ln):
+            continue
+        out.append(ln)
+    # Collapse runs of blank lines.
+    cleaned = re.sub(r"\n{3,}", "\n\n", "\n".join(out))
+    return cleaned.strip()
 
 
 class LLMUnavailable(RuntimeError):
@@ -71,12 +101,13 @@ SYSTEM_PROMPT = (
 
 
 def _build_user_message(memoria_text: str, tipos_catalogue: dict) -> str:
-    """Compact user message: a truncated memoria plus the catalogue of
-    accepted tipos as JSON. The tipos block sits at the END so the prompt
-    cache can hit on the SAME catalogue across calls (Groq supports OpenAI-
-    style prompt caching transparently)."""
-    text = memoria_text[:MAX_MEMORIA_CHARS]
-    if len(memoria_text) > MAX_MEMORIA_CHARS:
+    """Compact user message: the memoria's descriptive content (TOC and
+    signature noise removed) plus the catalogue of accepted tipos as JSON.
+    The tipos block sits at the END so prompt-cache hits compound across
+    calls (Groq supports OpenAI-style prompt caching transparently)."""
+    cleaned = _strip_toc(memoria_text)
+    text = cleaned[:MAX_MEMORIA_CHARS]
+    if len(cleaned) > MAX_MEMORIA_CHARS:
         text = text + "\n[…texto truncado por longitud…]"
     tipos = {k: v.get("descripcion_corta", "") for k, v in tipos_catalogue.items()
              if isinstance(v, dict) and not k.startswith("_")}

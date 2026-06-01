@@ -416,7 +416,10 @@ def llm_suggest(job_id: str):
         return _err("No se encontró la memoria original del job.", 404)
     memoria_path = memoria_files[0]
     try:
-        memoria_text = run_demo._read_memoria_text(memoria_path)
+        # Bigger window for the LLM than for metadata parsing — narrative
+        # proyectos técnicos often spend the first ~30 pages on the index
+        # and the "memoria constructiva" only starts later.
+        memoria_text = run_demo._read_memoria_text(memoria_path, max_pages=90)
     except Exception as exc:                          # noqa: BLE001
         return _err(f"No se pudo leer la memoria: {exc}", 500)
 
