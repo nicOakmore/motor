@@ -30,18 +30,46 @@
 </section>
 {% endif %}
 
-{% if llm_enabled and manifest.partidas | length == 0 %}
+{% if manifest.partidas | length == 0 %}
 <section class="card client-cta">
-  <h2>¿Memoria narrativa, 0 partidas?</h2>
+  <h2>0 partidas detectadas en la memoria</h2>
   <p class="muted">
-    El texto de la memoria no tiene la forma «<em>N. verbo: cantidad m²</em>».
-    Puedes pedir a la IA que extraiga las partidas mencionadas en el texto
-    contra el catálogo. Las propuestas pasan por el motor determinista
-    (precios, regulatorias, traza) — la IA no asienta hechos por sí sola.
+    El texto narrativo de esta memoria no incluye una lista numerada con
+    medición («<em>N. verbo: cantidad m²</em>»), así que el parser
+    determinista no ha podido reconstruir el alcance. Esto es lo habitual
+    en proyectos técnicos reales — el detalle de medición y partidas vive
+    en un documento aparte («Mediciones y Presupuesto»).
   </p>
-  <form action="{{ url_for('llm_suggest', job_id=job_id) }}" method="post">
-    <button type="submit" class="primary">Extraer partidas con IA</button>
-  </form>
+  <p class="muted">
+    Tienes tres opciones para terminar el presupuesto:
+  </p>
+  <div class="cta-row">
+    <a class="cta-tile" href="{{ url_for('edit', job_id=job_id) }}">
+      <span class="cta-label">1 · Editor: añade partidas del catálogo</span>
+      <span class="cta-meta">111 partidas. Eliges, indicas medición, recalcula.</span>
+    </a>
+    <a class="cta-tile" style="background:linear-gradient(135deg,#4a3a1a,#6e5827)"
+       href="{{ url_for('index') }}">
+      <span class="cta-label">2 · Sube el BC3 de Presto / Arquímedes</span>
+      <span class="cta-meta">El motor lee capítulos, partidas, descompuestos y mediciones.</span>
+    </a>
+    {% if llm_enabled %}
+    <form action="{{ url_for('llm_suggest', job_id=job_id) }}" method="post"
+          style="display:contents">
+      <button type="submit" class="cta-tile" style="background:linear-gradient(135deg,#1a5c4a,#28815a);border:0;cursor:pointer;text-align:left;font:inherit;color:#fff;padding:16px 18px;border-radius:10px">
+        <span class="cta-label">3 · Extraer partidas con IA</span>
+        <span class="cta-meta">La IA propone partidas; el motor las precia.</span>
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  {% if not llm_enabled %}
+  <p class="muted" style="margin-top:10px">
+    <em>Hay una tercera opción opcional con IA gratuita (Llama 3.3 70B vía
+    Groq) cuando el administrador active <code>LLM_ENABLED</code>; ahora
+    mismo está apagada.</em>
+  </p>
+  {% endif %}
 </section>
 {% endif %}
 
