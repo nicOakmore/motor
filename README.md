@@ -1,4 +1,4 @@
-# Motor de Presupuestos — Oakmore Labs
+# Motor de Presupuestos
 
 Construction-budget rule engine for Ibiza/Baleares.
 

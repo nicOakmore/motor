@@ -29,7 +29,6 @@ def build() -> pathlib.Path:
         leftMargin=15 * mm, rightMargin=15 * mm,
         topMargin=12 * mm, bottomMargin=12 * mm,
         title="Motor de Presupuestos — Cómo funciona",
-        author="Oakmore Labs",
     )
 
     styles = getSampleStyleSheet()
@@ -173,7 +172,7 @@ def build() -> pathlib.Path:
 
     story.append(Spacer(1, 3))
     story.append(Paragraph(
-        "Oakmore Labs · Motor de Presupuestos · Documento generado automáticamente.",
+        "Motor de Presupuestos · Documento generado automáticamente.",
         small,
     ))
 
