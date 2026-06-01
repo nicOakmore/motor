@@ -291,17 +291,51 @@ def build() -> pathlib.Path:
         body,
     ))
 
-    story.append(Paragraph("IA · activa en este servidor", h2))
+    story.append(Paragraph("IA · activa en este servidor (y qué esperar)", h2))
     story.append(Paragraph(
-        "Cuando subes una memoria narrativa (PDF de proyecto técnico sin "
-        "lista numerada de partidas), el panel de resultados ofrece el "
-        "botón <b>«Extraer partidas con IA»</b>. El modelo (<b>Llama 3.3 "
-        "70B</b> vía Groq, gratis) propone partidas contra el catálogo; el "
-        "motor determinista las precia y la auditoría sigue funcionando "
-        "(la IA nunca asienta hechos sola). El Sant Josep PDF de 240 "
-        "páginas pasa de 0 € a ~118.000 € con este flujo. La IA se puede "
-        "apagar al instante desde Render → Environment → <code>LLM_ENABLED"
-        "</code>.",
+        "Cuando subes una memoria narrativa (PDF sin lista numerada de "
+        "partidas), el panel de resultados ofrece el botón <b>«Extraer "
+        "partidas con IA»</b>. El modelo (<b>Llama 3.3 70B</b> vía Groq, "
+        "gratis, con fallback automático a Llama 3.1 8B si se agota el "
+        "cupo) propone partidas <i>contra el catálogo de 111 entradas</i>; "
+        "el motor determinista las precia y la auditoría sigue funcionando "
+        "— <b>la IA nunca asienta hechos por sí sola</b>.",
+        body,
+    ))
+    story.append(Paragraph(
+        "<b>Por diseño, la IA NO inventa partidas.</b> El prompt es "
+        "estricto: «si la memoria no menciona el trabajo con suficiente "
+        "claridad, OMITE la propuesta. No inventes mediciones.» En "
+        "consecuencia hay tres resultados posibles tras pulsar el botón:",
+        body,
+    ))
+    story.append(Paragraph(
+        "<b>(1) PEM real con partidas concretas.</b> La memoria describe "
+        "trabajos con mediciones inferibles. Sant Josep (240 pp) pasa de "
+        "0 € a ~118.000 € con 10–15 partidas reales en este flujo.",
+        body,
+    ))
+    story.append(Paragraph(
+        "<b>(2) PEM = 0,00 € y aviso «sin propuestas».</b> La memoria es "
+        "una compilación de referencias regulatorias (CTE-DB-XX, RD, "
+        "Decretos) sin descripción suficiente del alcance — es el caso "
+        "de muchos proyectos básicos delgados (ej. Porreres). La IA "
+        "rehúsa fabricar números: ésa es la <b>garantía de auditoría</b>. "
+        "En ese momento usa el editor para añadir partidas del catálogo "
+        "o sube el BC3 si el técnico ya tiene las mediciones.",
+        body,
+    ))
+    story.append(Paragraph(
+        "<b>(3) Error de cupo.</b> Groq gratis tiene límites por minuto "
+        "(12.000 t para el 70B) y por día (100.000 t para el 70B; 500.000 "
+        "t para el 8B). El sistema reintenta automáticamente con el modelo "
+        "pequeño; si ambos están saturados, espera unos minutos o cambia "
+        "<code>LLM_MODEL</code> en Render.",
+        body,
+    ))
+    story.append(Paragraph(
+        "La IA se puede apagar al instante desde Render → Environment → "
+        "<code>LLM_ENABLED=false</code> sin redeploy.",
         body,
     ))
 
