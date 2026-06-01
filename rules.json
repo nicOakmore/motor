@@ -1,5 +1,5 @@
 {
-  "_comment": "KNOWLEDGE BASE. Authored and edited by Claude Code (offline). The deterministic engine fires these at runtime. No euro figures here — prices come from the catalogue. Percentages are RD 1098/2001 reference values, overridable per project.",
+  "_comment": "KNOWLEDGE BASE. Authored and edited offline. The deterministic engine fires these at runtime. No euro figures here — prices come from the catalogue. Percentages are RD 1098/2001 reference values, overridable per project.",
 
   "parameters": {
     "gg_pct": 0.13,
@@ -12,7 +12,7 @@
   },
 
   "concepto_to_price": {
-    "_doc": "Knowledge: which price code in the catalogue resolves a given partida concept. Edited offline by Claude Code. Engine looks up by concepto string.",
+    "_doc": "Knowledge: which price code in the catalogue resolves a given partida concept. Engine looks up by concepto string.",
     "demolicion_tabique": "PA-DEM-LHD",
     "tabique": "PA-TAB-LH7",
     "enlucido": "PA-ENL-YESO",
@@ -33,7 +33,7 @@
       "name": "MAP_demolicion_tabique",
       "family": "mapping",
       "salience": 100,
-      "_doc": "Demoler un tabique implica partida de demolición.",
+      "_doc": "Demolishing a tabique implies a demolition partida.",
       "when": { "kind": "scope-item", "filters": { "tipo": "demolicion_tabique" } },
       "then": { "assert": { "kind": "partida-pendiente",
         "data": { "capitulo": "Demoliciones", "concepto": "demolicion_tabique", "medicion": "{cantidad}", "unidad": "{unidad}", "scope_ref": "{id}" } } }
@@ -42,7 +42,7 @@
       "name": "MAP_tabique_a_partidas",
       "family": "mapping",
       "salience": 100,
-      "_doc": "Un tabique nuevo en la memoria genera la partida de albañilería.",
+      "_doc": "A new tabique in the memoria generates the albañilería partida.",
       "when": { "kind": "scope-item", "filters": { "tipo": "tabique" } },
       "then": { "assert": { "kind": "partida-pendiente",
         "data": { "capitulo": "Albañilería", "concepto": "tabique", "medicion": "{cantidad}", "unidad": "{unidad}", "scope_ref": "{id}" } } }
@@ -51,6 +51,7 @@
       "name": "MAP_enlucido",
       "family": "mapping",
       "salience": 100,
+      "_doc": "Plastering item in the memoria → revestimientos partida.",
       "when": { "kind": "scope-item", "filters": { "tipo": "enlucido" } },
       "then": { "assert": { "kind": "partida-pendiente",
         "data": { "capitulo": "Revestimientos", "concepto": "enlucido", "medicion": "{cantidad}", "unidad": "{unidad}", "scope_ref": "{id}" } } }
@@ -59,6 +60,7 @@
       "name": "MAP_pintura",
       "family": "mapping",
       "salience": 100,
+      "_doc": "Painting item → pintura partida.",
       "when": { "kind": "scope-item", "filters": { "tipo": "pintura" } },
       "then": { "assert": { "kind": "partida-pendiente",
         "data": { "capitulo": "Pintura", "concepto": "pintura", "medicion": "{cantidad}", "unidad": "{unidad}", "scope_ref": "{id}" } } }
@@ -67,6 +69,7 @@
       "name": "MAP_solado_porcelanico",
       "family": "mapping",
       "salience": 100,
+      "_doc": "Porcelain flooring → pavimentos partida.",
       "when": { "kind": "scope-item", "filters": { "tipo": "solado_porcelanico" } },
       "then": { "assert": { "kind": "partida-pendiente",
         "data": { "capitulo": "Pavimentos", "concepto": "solado_porcelanico", "medicion": "{cantidad}", "unidad": "{unidad}", "scope_ref": "{id}" } } }
@@ -75,28 +78,28 @@
       "name": "REG_licencia_requerida",
       "family": "regulatory",
       "salience": 60,
-      "_doc": "LUIB 12/2017 art.146 + LOE 38/1999: si requiere proyecto tecnico, licencia previa.",
+      "_doc": "LUIB 12/2017 art.146 + LOE 38/1999: a work that needs a technical project requires prior municipal licence.",
       "when": { "kind": "project-meta", "filters": { "requiere_proyecto": true } },
       "then": { "assert": { "kind": "flag",
-        "data": { "nivel": "WARN", "codigo": "LICENCIA_PREVIA", "mensaje": "Obra sujeta a licencia urbanistica municipal previa (LUIB art.146). Anexos: ESS RD1627/1997, RCD RD105/2008, control calidad CTE, plan de obra." } } }
+        "data": { "nivel": "WARN", "codigo": "LICENCIA_PREVIA", "mensaje": "Prior municipal urban-planning licence required (LUIB art.146). Mandatory annexes: Health & Safety study (RD 1627/1997), Construction & Demolition waste plan (RD 105/2008), CTE quality-control plan, and project schedule." } } }
     },
     {
       "name": "REG_rustico_riesgo",
       "family": "regulatory",
       "salience": 60,
-      "_doc": "Suelo rustico en Ibiza = alto riesgo. Solo levanta bandera, nunca decide legalidad.",
+      "_doc": "Rural land in Ibiza is high-risk. The rule only raises a flag; it never asserts legality.",
       "when": { "kind": "project-meta", "filters": { "suelo": "rustico" } },
       "then": { "assert": { "kind": "flag",
-        "data": { "nivel": "STOP", "codigo": "RUSTICO_REVISAR", "mensaje": "Suelo rustico en Ibiza: requiere revision tecnica/juridica (Ley 7/2024, regimenes de legalizacion). No presupuestar sin verificar regimen." } } }
+        "data": { "nivel": "STOP", "codigo": "RUSTICO_REVISAR", "mensaje": "Rural land in Ibiza: requires prior technical / legal review (Ley 7/2024, regularisation regimes). Do not budget without verifying the applicable regime." } } }
     },
     {
       "name": "REG_iva_reducido",
       "family": "regulatory",
       "salience": 50,
-      "_doc": "IVA 10% solo en vivienda habitual (Ley 37/1992 art.91.uno.2). Recordar al tecnico verificar.",
+      "_doc": "Reduced 10% IVA only applies to primary residence (Ley 37/1992 art.91.uno.2). Remind the technician to verify eligibility.",
       "when": { "kind": "project-param", "filters": { "clave": "uso", "valor": "vivienda_habitual" } },
       "then": { "assert": { "kind": "flag",
-        "data": { "nivel": "INFO", "codigo": "IVA_REDUCIDO_10", "mensaje": "Aplicado IVA 10% por uso vivienda habitual (Ley 37/1992 art.91.uno.2). Verificar que cumple los requisitos." } } }
+        "data": { "nivel": "INFO", "codigo": "IVA_REDUCIDO_10", "mensaje": "Reduced 10% IVA applied for primary-residence use (Ley 37/1992 art.91.uno.2). Verify that the project meets the eligibility requirements." } } }
     }
   ]
 }

@@ -2,48 +2,49 @@
 {% block content %}
 
 <section class="hero">
-  <h1>Genera un presupuesto trazable desde una memoria constructiva</h1>
+  <h1>Generate a traceable budget from a construction memoria</h1>
   <p>
-    Sube una memoria (texto/Markdown) o prueba una de muestra.
-    El sistema convierte el alcance en partidas, las cuantifica con el
-    catálogo de precios, aplica el escalado <strong>PEM → PEC → IVA</strong>
-    según RD 1098/2001 y levanta las banderas regulatorias propias de Ibiza.
+    Upload a <em>memoria constructiva</em> (text / Markdown) or try one of the
+    samples. The engine maps scope items to partidas, prices them from the
+    catalogue, applies the regulated build-up <strong>PEM → PEC → IVA</strong>
+    (RD 1098/2001) and raises the Ibiza-specific regulatory flags.
   </p>
 </section>
 
 <section class="card">
-  <h2>1 · Elige una memoria de muestra</h2>
+  <h2>1 · Try a sample memoria</h2>
   <form action="{{ url_for('run') }}" method="post" class="row-form">
-    <label for="sample" class="visually-hidden">Memoria de muestra</label>
+    <label for="sample" class="visually-hidden">Sample memoria</label>
     <select name="sample" id="sample">
       {% for s in samples %}
         <option value="{{ s }}">{{ s }}</option>
       {% endfor %}
     </select>
-    <button type="submit" class="primary">Procesar muestra</button>
+    <button type="submit" class="primary">Run sample</button>
   </form>
 </section>
 
 <section class="card">
-  <h2>2 · O sube la tuya</h2>
+  <h2>2 · Or upload your own</h2>
   <form action="{{ url_for('run') }}" method="post" enctype="multipart/form-data" class="row-form">
     <input type="file" name="memoria" accept=".md,.txt" required>
-    <button type="submit" class="primary">Procesar memoria</button>
+    <button type="submit" class="primary">Process memoria</button>
   </form>
   <p class="muted">
-    Formatos: <code>.md</code>, <code>.txt</code>. Tamaño máximo 256 KB.
-    El parser reconoce ítems numerados con verbo + medición (p. ej. «3. Enlucido de yeso: <strong>80 m²</strong>»).
+    Formats: <code>.md</code>, <code>.txt</code>. Max 256 KB.
+    The parser recognises numbered items with a verb + measurement
+    (e.g. <em>«3. Enlucido de yeso: <strong>80 m²</strong>»</em>).
   </p>
 </section>
 
 <section class="card subtle">
-  <h2>¿Qué obtienes?</h2>
+  <h2>What you get</h2>
   <ul>
-    <li><strong>Presupuesto</strong> (Markdown + JSON) con capítulos, partidas y cuadro resumen.</li>
-    <li><strong>Plan de acopios</strong> (CSV) — material consolidado con merma aplicada.</li>
-    <li><strong>Banderas regulatorias</strong> — licencia previa, rústico, IVA aplicable.</li>
-    <li><strong>BC3 (FIEBDC-3)</strong> — exportable a Presto / Arquímedes / CYPE.</li>
-    <li><strong>Traza completa</strong> — cada euro se rastrea hasta su regla.</li>
+    <li><strong>Budget</strong> (Markdown + JSON) — capítulos, partidas and summary cuadro.</li>
+    <li><strong>Procurement plan</strong> (CSV) — consolidated materials with merma applied.</li>
+    <li><strong>Regulatory flags</strong> — licencia previa, rústico, applicable IVA.</li>
+    <li><strong>BC3 (FIEBDC-3)</strong> — exportable to Presto / Arquímedes / CYPE.</li>
+    <li><strong>Full trace</strong> — every euro traces back to the rule that produced it.</li>
   </ul>
 </section>
 

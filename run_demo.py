@@ -183,15 +183,15 @@ def bind_prices_to_partidas(wm: engine.WorkingMemory, rules_spec: dict) -> None:
         code = concept_to_code.get(concepto)
         if code is None:
             wm.assert_fact("flag", {
-                "nivel": "WARN", "codigo": "PRECIO_NO_MAPEADO",
-                "mensaje": f"No hay price code para concepto '{concepto}'. Añadir entrada en concepto_to_price."
+                "nivel": "WARN", "codigo": "PRICE_NOT_MAPPED",
+                "mensaje": f"No price code mapped for concept '{concepto}'. Add an entry under concepto_to_price."
             }, produced_by="bind_prices_to_partidas")
             continue
         price = best_price(code)
         if price is None:
             wm.assert_fact("flag", {
-                "nivel": "WARN", "codigo": "PRECIO_NO_DISPONIBLE",
-                "mensaje": f"Code '{code}' no encontrado en catálogo (concepto '{concepto}')."
+                "nivel": "WARN", "codigo": "PRICE_NOT_AVAILABLE",
+                "mensaje": f"Code '{code}' not found in the catalogue (concept '{concepto}')."
             }, produced_by="bind_prices_to_partidas")
             continue
 
@@ -246,11 +246,11 @@ def render_presupuesto(wm: engine.WorkingMemory, totales: dict, meta: dict,
         by_cap.setdefault(p["capitulo"], []).append(p)
 
     out = []
-    out.append(f"# Presupuesto — {meta.get('memoria','(sin nombre)')}")
+    out.append(f"# Budget — {meta.get('memoria','(unnamed)')}")
     out.append("")
-    out.append(f"- Suelo: **{meta.get('suelo')}**")
-    out.append(f"- Uso: **{meta.get('uso')}**")
-    out.append(f"- Proyecto técnico: **{'sí' if meta.get('requiere_proyecto') else 'no'}**")
+    out.append(f"- Land: **{meta.get('suelo')}**")
+    out.append(f"- Use: **{meta.get('uso')}**")
+    out.append(f"- Technical project: **{'yes' if meta.get('requiere_proyecto') else 'no'}**")
     out.append("")
 
     ordered_caps = [c for c in capitulo_orden if c in by_cap] + \
@@ -259,8 +259,8 @@ def render_presupuesto(wm: engine.WorkingMemory, totales: dict, meta: dict,
     for cap in ordered_caps:
         out.append(f"## Capítulo — {cap}")
         out.append("")
-        out.append("| Code | Descripción | Ud | Medición | Precio ud | Importe |")
-        out.append("|------|-------------|----|---------:|----------:|--------:|")
+        out.append("| Code | Description | Unit | Quantity | Unit price | Amount |")
+        out.append("|------|-------------|------|---------:|-----------:|-------:|")
         subtotal = 0.0
         for p in by_cap[cap]:
             subtotal += p["importe"]
@@ -272,17 +272,17 @@ def render_presupuesto(wm: engine.WorkingMemory, totales: dict, meta: dict,
         out.append(f"| | | | | **Subtotal** | **{fmt_eur(subtotal)}** |")
         out.append("")
 
-    out.append("## Cuadro resumen (RD 1098/2001)")
+    out.append("## Summary (RD 1098/2001)")
     out.append("")
-    out.append("| Concepto | Importe |")
-    out.append("|----------|--------:|")
-    out.append(f"| PEM (Presupuesto de Ejecución Material) | {fmt_eur(totales['PEM'])} |")
-    out.append(f"| Gastos Generales ({totales['gg_pct']*100:.0f}%) | {fmt_eur(totales['GG'])} |")
-    out.append(f"| Beneficio Industrial ({totales['bi_pct']*100:.0f}%) | {fmt_eur(totales['BI'])} |")
-    out.append(f"| **PEC (Presupuesto de Ejecución por Contrata)** | **{fmt_eur(totales['PEC'])}** |")
+    out.append("| Item | Amount |")
+    out.append("|------|-------:|")
+    out.append(f"| PEM (Material Execution Budget) | {fmt_eur(totales['PEM'])} |")
+    out.append(f"| GG — General overheads ({totales['gg_pct']*100:.0f}%) | {fmt_eur(totales['GG'])} |")
+    out.append(f"| BI — Industrial benefit ({totales['bi_pct']*100:.0f}%) | {fmt_eur(totales['BI'])} |")
+    out.append(f"| **PEC (Contract Execution Budget)** | **{fmt_eur(totales['PEC'])}** |")
     out.append(f"| IVA ({totales['iva_pct']*100:.0f}%) | {fmt_eur(totales['IVA'])} |")
     out.append(f"| **TOTAL** | **{fmt_eur(totales['TOTAL'])}** |")
-    out.append(f"| ICIO (sobre PEM) | {fmt_eur(totales['ICIO'])} |")
+    out.append(f"| ICIO (indicative, on PEM) | {fmt_eur(totales['ICIO'])} |")
     return "\n".join(out) + "\n"
 
 
@@ -290,13 +290,13 @@ def render_flags(wm: engine.WorkingMemory) -> str:
     flags = [f.data | {"rule": f.produced_by} for f in wm.query("flag")]
     order = {"STOP": 0, "WARN": 1, "INFO": 2}
     flags.sort(key=lambda f: order.get(f.get("nivel", "INFO"), 3))
-    out = ["# Checklist regulatorio", ""]
+    out = ["# Regulatory checklist", ""]
     if not flags:
-        out.append("_Sin banderas levantadas._")
+        out.append("_No flags raised._")
         return "\n".join(out) + "\n"
     for f in flags:
         out.append(f"## [{f['nivel']}] {f['codigo']}")
-        out.append(f"- Regla origen: `{f['rule']}`")
+        out.append(f"- Source rule: `{f['rule']}`")
         out.append(f"- {f['mensaje']}")
         out.append("")
     return "\n".join(out) + "\n"
@@ -312,7 +312,7 @@ def render_acopios_csv(plan: list[dict]) -> str:
 
 def render_trace(wm: engine.WorkingMemory) -> str:
     """Provenance dump: every fact + the rule that produced it."""
-    out = ["# Traza de hechos (provenance)", "",
+    out = ["# Fact trace (provenance)", "",
            "| # | Kind | produced_by | Data |",
            "|---|------|-------------|------|"]
     for f in wm.all():
@@ -408,10 +408,10 @@ def run_for_memoria(memoria_path: pathlib.Path,
 
     if verbose:
         print(f"  Partidas: {len(partidas_out)}")
-        print(f"  PEM:   {totales['PEM']:>12,.2f} €")
-        print(f"  PEC:   {totales['PEC']:>12,.2f} €")
-        print(f"  IVA:   {totales['IVA']:>12,.2f} €")
-        print(f"  TOTAL: {totales['TOTAL']:>12,.2f} €")
+        print(f"  PEM:   {totales['PEM']:>12,.2f} EUR")
+        print(f"  PEC:   {totales['PEC']:>12,.2f} EUR")
+        print(f"  IVA:   {totales['IVA']:>12,.2f} EUR")
+        print(f"  TOTAL: {totales['TOTAL']:>12,.2f} EUR")
         if flags:
             print(f"  Flags: {len(flags)}")
             for f in flags:
@@ -420,7 +420,7 @@ def run_for_memoria(memoria_path: pathlib.Path,
             rel = out_dir.relative_to(ROOT)
         except ValueError:
             rel = out_dir
-        print(f"  → salidas escritas en {rel}/")
+        print(f"  -> output written to {rel}/")
 
     return {
         "out_dir": out_dir,
@@ -438,7 +438,7 @@ def main() -> int:
     if not args:
         args = sorted(MEMORIAS.glob("*.md"))
     if not args:
-        print("No hay memorias. Suelta una en ./memorias/ y vuelve a lanzar.")
+        print("No memorias found. Drop one into ./memorias/ and re-run.")
         return 1
     for path in args:
         run_for_memoria(path)

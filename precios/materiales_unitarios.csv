@@ -1,6 +1,6 @@
 material_code,descripcion,unidad,cantidad_por_partida,partida_code,merma_pct
-MAT-LH7,"Ladrillo hueco del 7 (24x11.5x7 cm)",ud,40,PA-TAB-LH7,0.05
-MAT-MORT-COLA,"Mortero cola para gres porcelánico",kg,5,PA-SOL-PORC60,0.08
-MAT-YESO,"Yeso negro de obra YG en saco 25 kg",kg,11,PA-ENL-YESO,0.05
-MAT-PIN-PLAST,"Pintura plástica blanca interior, kg/m² rendimiento 0,2",kg,0.4,PA-PIN-PLAST,0.05
-MAT-PORC60,"Baldosa gres porcelánico 60×60 cm, clase 4",m2,1.0,PA-SOL-PORC60,0.07
+MAT-LH7,"Hollow brick LH7 (24x11.5x7 cm)",ud,40,PA-TAB-LH7,0.05
+MAT-MORT-COLA,"Tile adhesive mortar for porcelain stoneware",kg,5,PA-SOL-PORC60,0.08
+MAT-YESO,"Construction gypsum (YG), 25 kg sack",kg,11,PA-ENL-YESO,0.05
+MAT-PIN-PLAST,"White interior plastic paint, ~0.2 kg/m² coverage",kg,0.4,PA-PIN-PLAST,0.05
+MAT-PORC60,"Porcelain stoneware tile 60x60 cm, class 4",m2,1.0,PA-SOL-PORC60,0.07
