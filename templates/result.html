@@ -14,6 +14,37 @@
   </p>
 </section>
 
+{% if request.args.get('llm') == 'empty' %}
+<section class="card flags">
+  <div class="flag flag-info">
+    <strong>IA · sin propuestas</strong>
+    <div>El modelo no pudo extraer partidas con suficiente claridad. Prueba a editar la memoria o añadir partidas manualmente desde el catálogo.</div>
+  </div>
+</section>
+{% elif request.args.get('llm') == 'ok' %}
+<section class="card flags">
+  <div class="flag flag-info">
+    <strong>IA · partidas propuestas</strong>
+    <div>La IA propuso partidas a partir del texto de la memoria. Revisa y ajusta en el editor antes de enviar al cliente.</div>
+  </div>
+</section>
+{% endif %}
+
+{% if llm_enabled and manifest.partidas | length == 0 %}
+<section class="card client-cta">
+  <h2>¿Memoria narrativa, 0 partidas?</h2>
+  <p class="muted">
+    El texto de la memoria no tiene la forma «<em>N. verbo: cantidad m²</em>».
+    Puedes pedir a la IA que extraiga las partidas mencionadas en el texto
+    contra el catálogo. Las propuestas pasan por el motor determinista
+    (precios, regulatorias, traza) — la IA no asienta hechos por sí sola.
+  </p>
+  <form action="{{ url_for('llm_suggest', job_id=job_id) }}" method="post">
+    <button type="submit" class="primary">Extraer partidas con IA</button>
+  </form>
+</section>
+{% endif %}
+
 {% set has_presup = 'presupuesto_cliente.pdf' in artefacts %}
 {% set has_plan = 'plan_de_obra.pdf' in artefacts %}
 {% if has_presup or has_plan %}

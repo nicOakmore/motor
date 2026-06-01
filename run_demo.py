@@ -937,6 +937,106 @@ def _render_trace_md(trace_rows: list[dict]) -> str:
     return "\n".join(out) + "\n"
 
 
+def rerun_with_extra_scope_items(memoria_path: pathlib.Path,
+                                 extra_items: list[dict],
+                                 out_root: pathlib.Path,
+                                 rules_spec: dict) -> dict:
+    """Re-run the full pipeline for a memoria, adding the LLM-proposed
+    scope items on top of whatever the deterministic parser found.
+
+    The LLM proposals enter the SAME path real scope-items do — they get
+    routed through concepto_metadata, priced from the catalogue and
+    booked into the engine alongside the parser's items. Deterministic
+    from there on: the LLM never asserts a partida directly."""
+    wm = engine.WorkingMemory()
+    eng = engine.Engine(wm)
+    engine.load_rules(str(ROOT / "rules.json"), eng)
+
+    parsed = parse_memoria(memoria_path)
+
+    wm.assert_fact("project-meta", {
+        "memoria": parsed["meta"]["memoria"],
+        "suelo": parsed["meta"]["suelo"],
+        "requiere_proyecto": parsed["meta"]["requiere_proyecto"],
+        "uso": parsed["meta"]["uso"],
+        "uso_turistico": parsed["meta"].get("uso_turistico", False),
+        "incluye_demoliciones": parsed["meta"].get("incluye_demoliciones", False),
+        "toca_envolvente": parsed["meta"].get("toca_envolvente", False),
+    }, produced_by="ingesta_memoria")
+
+    metadata = rules_spec.get("concepto_metadata", {})
+    all_items = list(parsed["items"])
+    # LLM proposals are tagged with their provenance so the trace remains
+    # auditable; the engine doesn't distinguish, but humans reading
+    # traza.md can.
+    for it in extra_items:
+        tipo = it.get("tipo")
+        if not tipo or tipo not in metadata:
+            continue
+        all_items.append({
+            "tipo": tipo,
+            "cantidad": float(it.get("cantidad") or 0),
+            "unidad": (it.get("unidad") or
+                       metadata[tipo].get("unidad") or "ud"),
+            "_provenance": "llm",
+        })
+
+    for i, item in enumerate(all_items, start=1):
+        meta_entry = metadata.get(item["tipo"], {})
+        produced_by = ("ingesta_llm" if item.get("_provenance") == "llm"
+                        else "ingesta_memoria")
+        wm.assert_fact("scope-item", {
+            "id": f"S{i:03d}",
+            "descripcion": meta_entry.get("descripcion_corta", item["tipo"]),
+            "tipo": item["tipo"],
+            "capitulo": meta_entry.get("capitulo", "Sin capítulo"),
+            "cantidad": item["cantidad"],
+            "unidad": meta_entry.get("unidad", item["unidad"]),
+        }, produced_by=produced_by)
+        wm.assert_fact("partida-pendiente", {
+            "capitulo": meta_entry.get("capitulo", "Sin capítulo"),
+            "concepto": item["tipo"],
+            "medicion": item["cantidad"],
+            "unidad": meta_entry.get("unidad", item["unidad"]),
+            "scope_ref": f"S{i:03d}",
+        }, produced_by=produced_by)
+
+    for price in load_price_catalogue():
+        for k in ("mo", "mat", "maq", "indirectos_pct"):
+            try:
+                price[k] = float(price.get(k) or 0.0)
+            except (TypeError, ValueError):
+                price[k] = 0.0
+        wm.assert_fact("price", price, produced_by="ingesta_precios")
+
+    eng.run()
+    bind_prices_to_partidas(wm, rules_spec)
+    explode_material_lines(wm, load_material_lines())
+    eng.run()
+
+    totales = engine.compute_presupuesto(wm)
+    plan = engine.compute_plan_acopios(wm)
+    flags = [f.data for f in wm.query("flag")]
+    flags_with_rule = [f.data | {"rule": f.produced_by}
+                        for f in wm.query("flag")]
+    partidas_out = [f.data for f in wm.query("partida")]
+    trace_rows = [{"id": f._id, "kind": f.kind, "produced_by": f.produced_by,
+                   "data": f.data} for f in wm.all()]
+
+    out_dir = out_root / memoria_path.stem
+    out_dir.mkdir(parents=True, exist_ok=True)
+    write_artefacts(
+        out_dir=out_dir, meta=parsed["meta"], partidas=partidas_out,
+        totales=totales, flags=flags_with_rule, acopios=plan,
+        trace_rows=trace_rows, rules_spec=rules_spec,
+    )
+
+    return {
+        "out_dir": out_dir, "meta": parsed["meta"], "totales": totales,
+        "flags": flags, "partidas": partidas_out, "acopios": plan,
+    }
+
+
 def recompute_totales(partidas: list[dict], rules_spec: dict) -> dict:
     """Recompute totales for an edited partida list — same engine math,
     no re-running of mapping/regulatory rules."""

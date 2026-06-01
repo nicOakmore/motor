@@ -30,6 +30,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 import run_demo
+import llm_extract
 
 
 ROOT = pathlib.Path(__file__).parent
@@ -218,6 +219,7 @@ def result(job_id: str):
         manifest=manifest,
         artefacts=artefacts,
         grouped=grouped,
+        llm_enabled=llm_extract.llm_enabled(),
     )
 
 
@@ -389,6 +391,71 @@ def how_pdf():
     pdf = _ensure_pdf()
     return send_file(pdf, mimetype="application/pdf",
                      as_attachment=False, download_name="como_funciona.pdf")
+
+
+@app.post("/j/<job_id>/llm-suggest")
+def llm_suggest(job_id: str):
+    """Offline LLM step: feed the memoria text to the model with the
+    concepto_metadata catalogue, get back proposed scope-items, rerun
+    the engine and regenerate every artefact. Strictly OPT-IN — controlled
+    by LLM_ENABLED + GROQ_API_KEY env vars. The engine path is unchanged."""
+    d = _job_dir(job_id)
+    manifest = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+    if not llm_extract.llm_enabled():
+        return _err("La extracción por IA está deshabilitada en este servidor.", 503)
+
+    # Pick up the original memoria text from the job's input dir.
+    inbox = d / "input"
+    memoria_files = sorted(inbox.glob("*"))
+    if not memoria_files:
+        return _err("No se encontró la memoria original del job.", 404)
+    memoria_path = memoria_files[0]
+    try:
+        memoria_text = run_demo._read_memoria_text(memoria_path)
+    except Exception as exc:                          # noqa: BLE001
+        return _err(f"No se pudo leer la memoria: {exc}", 500)
+
+    rules_spec = json.loads((ROOT / "rules.json").read_text(encoding="utf-8"))
+    concepto_metadata = rules_spec.get("concepto_metadata", {})
+
+    try:
+        propuestas = llm_extract.extract_scope(memoria_text, concepto_metadata)
+    except llm_extract.LLMUnavailable as exc:
+        return _err(str(exc), 503)
+    except Exception as exc:                          # noqa: BLE001
+        return _err(f"La IA no pudo proponer partidas: {exc}", 502)
+
+    if not propuestas:
+        # Bounce back with a flash-style message: keep the original outputs,
+        # add a flag so the result page can show "AI couldn't extract anything".
+        manifest.setdefault("llm_history", []).append({
+            "model": llm_extract.DEFAULT_MODEL, "propuestas": 0,
+        })
+        (d / "manifest.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        return redirect(url_for("result", job_id=job_id) + "?llm=empty")
+
+    # Re-run the engine with the LLM-proposed scope items mixed in.
+    out_root = (d / "salidas").resolve()
+    new = run_demo.rerun_with_extra_scope_items(
+        memoria_path=memoria_path,
+        extra_items=propuestas,
+        out_root=out_root,
+        rules_spec=rules_spec,
+    )
+    manifest.update({
+        "totales": new["totales"],
+        "partidas": new["partidas"],
+        "flags": new["flags"],
+        "acopios": new["acopios"],
+        "llm_history": manifest.get("llm_history", []) + [{
+            "model": llm_extract.DEFAULT_MODEL,
+            "propuestas": len(propuestas),
+        }],
+    })
+    (d / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    return redirect(url_for("result", job_id=job_id) + "?llm=ok")
 
 
 @app.get("/healthz")
