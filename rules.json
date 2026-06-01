@@ -170,7 +170,9 @@
       "_doc": "Cuando hay demoliciones o movimiento de tierras, recordar la ordenanza municipal de ruido del municipio.",
       "when": {
         "kind": "project-meta",
-        "filters": { "incluye_demoliciones": true }
+        "filters": {
+          "incluye_demoliciones": true
+        }
       },
       "then": {
         "assert": {
@@ -190,7 +192,9 @@
       "_doc": "Si la obra requiere proyecto técnico, recordar la exigencia del CTE-DB-SUA (seguridad de utilización y accesibilidad).",
       "when": {
         "kind": "project-meta",
-        "filters": { "requiere_proyecto": true }
+        "filters": {
+          "requiere_proyecto": true
+        }
       },
       "then": {
         "assert": {
@@ -210,7 +214,9 @@
       "_doc": "Intervenciones sobre cubierta, fachada o carpintería exterior requieren cumplir el CTE-DB-HE (eficiencia energética).",
       "when": {
         "kind": "project-meta",
-        "filters": { "toca_envolvente": true }
+        "filters": {
+          "toca_envolvente": true
+        }
       },
       "then": {
         "assert": {
@@ -230,7 +236,9 @@
       "_doc": "Uso turístico en Baleares — Ley 8/2012 + Decreto 20/2015 (ETV) + moratorias por isla. Alto riesgo de no autorización en zonas saturadas de Ibiza.",
       "when": {
         "kind": "project-meta",
-        "filters": { "uso_turistico": true }
+        "filters": {
+          "uso_turistico": true
+        }
       },
       "then": {
         "assert": {

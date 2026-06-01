@@ -191,6 +191,9 @@ def build_cuadro_nro1_pdf(out_path: pathlib.Path, firm: dict, meta: dict,
 # Cuadro Nº 2 — descompuesto mo/mat/maq/indirectos por partida
 # --------------------------------------------------------------------------
 
+_SLOT_LABEL = {"mo": "M.O.", "mat": "Mat.", "maq": "Maq."}
+
+
 def build_cuadro_nro2_pdf(out_path: pathlib.Path, firm: dict, meta: dict,
                            partidas: list[dict], ref: str,
                            project_title: str | None = None) -> pathlib.Path:
@@ -203,55 +206,117 @@ def build_cuadro_nro2_pdf(out_path: pathlib.Path, firm: dict, meta: dict,
         Spacer(1, 6),
         Paragraph("CUADRO DE PRECIOS Nº 2", st["title"]),
         Paragraph(
-            "Descompuesto de cada precio unitario en mano de obra, "
-            "materiales, maquinaria e indirectos. Los porcentajes y los "
-            "componentes son los aplicados por el motor (RD 1098/2001).",
+            "Descompuesto detallado de cada precio unitario: por cada partida "
+            "se listan los componentes de mano de obra (h × tarifa), "
+            "materiales (cantidad × precio) y maquinaria (h × tarifa). "
+            "El precio unitario final = (Σ componentes) × (1 + % indirectos), "
+            "conforme al artículo 130 del RGLCAP (RD 1098/2001).",
             st["meta"],
         ),
-        Spacer(1, 6),
+        Spacer(1, 8),
     ]
 
-    head = [Paragraph(t, st["cell_b"]) for t in
-            ("Code", "Descripción", "Ud", "M.O.", "Mat.", "Maq.",
-             "% Indir.", "Precio (€)")]
-    body = [head]
-    for p in partidas:
-        mo  = float(p.get("mo_pu")  or 0)
-        mat = float(p.get("mat_pu") or 0)
-        maq = float(p.get("maq_pu") or 0)
-        indir_pct = float(p.get("indirectos_pct") or 0)
-        pu = float(p.get("precio_unitario") or 0)
-        body.append([
-            Paragraph(p["code"], st["cell"]),
-            Paragraph(p["descripcion"], st["cell"]),
-            Paragraph(p["unidad"], st["cell_c"]),
-            Paragraph(fmt_num(mo, 2),  st["cell_r"]),
-            Paragraph(fmt_num(mat, 2), st["cell_r"]),
-            Paragraph(fmt_num(maq, 2), st["cell_r"]),
-            Paragraph(f"{indir_pct*100:.1f}%", st["cell_r"]),
-            Paragraph(fmt_num(pu, 2), st["cell_r"]),
-        ])
-    t = Table(body,
-              colWidths=[16 * mm, 70 * mm, 9 * mm, 16 * mm, 16 * mm,
-                         16 * mm, 18 * mm, 22 * mm],
-              repeatRows=1)
-    t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), HEAD_BG),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.5, BRAND),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 3),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [white, ROW_ALT]),
-    ]))
-    story.append(t)
-    story.append(Spacer(1, 6))
-    story.append(Paragraph(
-        "Fórmula aplicada por partida: <b>precio unitario = "
-        "(M.O. + Materiales + Maquinaria) × (1 + % indirectos)</b>. "
-        "Las pequeñas diferencias por redondeo se asignan a la columna de "
-        "materiales para mantener el precio total inalterado.",
-        st["small"],
-    ))
+    for partida in partidas:
+        # Partida header line
+        story.append(Paragraph(
+            f"<b>{partida['code']} · {partida['descripcion']}</b> "
+            f"<font color='#5a6072'>· {partida['unidad']}</font>",
+            st["h3"],
+        ))
+
+        comps = partida.get("descompuesto") or []
+        if comps:
+            head = [Paragraph(t, st["cell_b"]) for t in
+                    ("Tipo", "Código", "Descripción", "Ud", "Rendim.",
+                     "Precio ud", "Importe")]
+            body = [head]
+            slot_subtotal = {"mo": 0.0, "mat": 0.0, "maq": 0.0}
+            for c in comps:
+                slot_subtotal[c["slot"]] += float(c["importe"])
+                body.append([
+                    Paragraph(_SLOT_LABEL.get(c["slot"], c["slot"]), st["cell"]),
+                    Paragraph(c["comp_code"], st["cell"]),
+                    Paragraph(c["descripcion"], st["cell"]),
+                    Paragraph(c.get("unidad") or "", st["cell_c"]),
+                    Paragraph(fmt_num(c["rendimiento"], 4), st["cell_r"]),
+                    Paragraph(fmt_num(c["precio_unitario"], 2), st["cell_r"]),
+                    Paragraph(fmt_num(c["importe"], 2), st["cell_r"]),
+                ])
+            # subtotals + indirectos + total rows. Span columns 0..5 for the
+            # label and keep the importe in column 6.
+            sub_total = sum(slot_subtotal.values())
+            indir_pct = float(partida.get("indirectos_pct") or 0)
+            indir_imp = round(sub_total * indir_pct, 2)
+            total_pu  = float(partida.get("precio_unitario") or 0)
+            body.append([
+                Paragraph("<b>Subtotal sin indirectos</b>", st["cell_r"]),
+                "", "", "", "", "",
+                Paragraph(f"<b>{fmt_num(sub_total, 2)}</b>", st["cell_r"]),
+            ])
+            body.append([
+                Paragraph(f"Costes indirectos ({indir_pct*100:.1f}%)", st["cell_r"]),
+                "", "", "", "", "",
+                Paragraph(fmt_num(indir_imp, 2), st["cell_r"]),
+            ])
+            body.append([
+                Paragraph("<b>PRECIO UNITARIO</b>", st["cell_r"]),
+                "", "", "", "", "",
+                Paragraph(f"<b>{fmt_num(total_pu, 2)} €</b>", st["cell_r"]),
+            ])
+            t = Table(body,
+                      colWidths=[14 * mm, 14 * mm, 78 * mm, 9 * mm,
+                                 22 * mm, 22 * mm, 23 * mm],
+                      repeatRows=1)
+            n = len(body)
+            style = [
+                ("BACKGROUND", (0, 0), (-1, 0), HEAD_BG),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.4, BRAND),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+                ("SPAN", (0, n - 3), (5, n - 3)),
+                ("SPAN", (0, n - 2), (5, n - 2)),
+                ("SPAN", (0, n - 1), (5, n - 1)),
+                ("LINEABOVE", (0, n - 3), (-1, n - 3), 0.4, BRAND_SOFT),
+                ("BACKGROUND", (0, n - 1), (-1, n - 1), HEAD_BG),
+                ("ROWBACKGROUNDS", (0, 1), (-1, n - 4), [white, ROW_ALT]),
+            ]
+            t.setStyle(TableStyle(style))
+            story.append(KeepTogether([t, Spacer(1, 6)]))
+        else:
+            # Fallback aggregated view when no detailed descompuesto exists.
+            mo  = float(partida.get("mo_pu")  or 0)
+            mat = float(partida.get("mat_pu") or 0)
+            maq = float(partida.get("maq_pu") or 0)
+            indir_pct = float(partida.get("indirectos_pct") or 0)
+            pu = float(partida.get("precio_unitario") or 0)
+            agg = Table([
+                [Paragraph("<b>M.O.</b>",  st["cell_b"]), Paragraph(fmt_num(mo,  2), st["cell_r"]),
+                 Paragraph("<b>Mat.</b>", st["cell_b"]),  Paragraph(fmt_num(mat, 2), st["cell_r"]),
+                 Paragraph("<b>Maq.</b>", st["cell_b"]),  Paragraph(fmt_num(maq, 2), st["cell_r"]),
+                 Paragraph(f"<b>% Indir.</b>", st["cell_b"]),
+                 Paragraph(f"{indir_pct*100:.1f}%", st["cell_r"]),
+                 Paragraph("<b>PU</b>", st["cell_b"]),
+                 Paragraph(f"<b>{fmt_num(pu, 2)} €</b>", st["cell_r"])],
+            ], colWidths=[14 * mm, 18 * mm, 14 * mm, 18 * mm, 14 * mm, 18 * mm,
+                          18 * mm, 14 * mm, 14 * mm, 24 * mm])
+            agg.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), ROW_ALT),
+                ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+            ]))
+            story.append(KeepTogether([
+                agg,
+                Paragraph(
+                    "<i>Sin descompuesto detallado disponible para esta "
+                    "partida — se muestra el agregado por capítulos.</i>",
+                    st["small"],
+                ),
+                Spacer(1, 6),
+            ]))
+
     return _build(out_path, "CUADRO DE PRECIOS Nº 2", firm, ref, story)

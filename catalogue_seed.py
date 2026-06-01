@@ -244,6 +244,257 @@ def code_for(chap_code: str, n: int) -> str:
     return f"PA-{chap_code}-{n:03d}"
 
 
+# --------------------------------------------------------------------------
+# Descompuestos — per-partida breakdown into labor, materials, machinery
+# (BC3/Presto-style "Cuadro de Precios Nº 2").
+# --------------------------------------------------------------------------
+
+# Labor catalogue (codes "O0X"). Tarifas reflect typical Ibiza/Baleares 2026
+# mid-range rates including SS+IRPF charge to firm.
+TARIFAS_MO: list[tuple[str, str, float]] = [
+    # (code, descripcion, tarifa_eur_h)
+    ("O0001", "Oficial 1ª construcción",              24.50),
+    ("O0002", "Oficial 2ª construcción",              21.80),
+    ("O0003", "Peón ordinario",                       19.40),
+    ("O0004", "Oficial 1ª albañil",                   24.50),
+    ("O0005", "Oficial 1ª encofrador",                26.80),
+    ("O0006", "Oficial 1ª ferralla",                  26.80),
+    ("O0007", "Oficial 1ª electricista",              26.40),
+    ("O0008", "Oficial 1ª fontanero",                 26.40),
+    ("O0009", "Oficial 1ª climatización",             28.00),
+    ("O0010", "Oficial 1ª pintor",                    23.80),
+    ("O0011", "Oficial 1ª solador-alicatador",        24.90),
+    ("O0012", "Oficial 1ª carpintero",                25.50),
+    ("O0013", "Oficial 1ª cubiertas / impermeabilizaciones", 25.80),
+    ("O0014", "Oficial 1ª aislamientos",              24.20),
+    ("O0015", "Oficial 1ª PYL / yesero",              24.20),
+]
+
+# Material catalogue (codes "M0X"). Prices are illustrative Spanish 2026.
+PRECIOS_MAT: list[tuple[str, str, str, float]] = [
+    # (code, descripcion, unidad, precio)
+    ("M0001", "Ladrillo hueco del 7 (24×11.5×7 cm)",            "ud",  0.18),
+    ("M0002", "Ladrillo hueco del 9 (24×11.5×9 cm)",            "ud",  0.22),
+    ("M0003", "Placa de yeso laminado 15 mm",                   "m2",  4.80),
+    ("M0004", "Yeso negro YG saco 25 kg",                       "kg",  0.12),
+    ("M0005", "Cemento Portland CEM-II/B-M 32,5R",              "kg",  0.12),
+    ("M0006", "Mortero cola para gres porcelánico",             "kg",  0.38),
+    ("M0007", "Baldosa gres porcelánico 60×60",                 "m2", 18.50),
+    ("M0008", "Baldosa gres porcelánico 80×80 rectificado",     "m2", 26.40),
+    ("M0009", "Azulejo cerámico 20×20",                         "m2",  9.80),
+    ("M0010", "Hormigón HA-25/B/20/IIa central",                "m3", 78.00),
+    ("M0011", "Hormigón HA-30/B/20/IIa central",                "m3", 84.00),
+    ("M0012", "Acero corrugado B500S",                          "kg",  0.88),
+    ("M0013", "Mallazo electrosoldado 15×15×6",                 "m2",  3.40),
+    ("M0014", "Pintura plástica blanca interior",               "kg",  2.80),
+    ("M0015", "Pintura al silicato exterior",                   "kg",  6.60),
+    ("M0016", "Pintura plástica satinada lavable",              "kg",  3.90),
+    ("M0017", "Tarima flotante laminada AC4",                   "m2", 16.80),
+    ("M0018", "Tarima maciza roble 22 mm",                      "m2", 52.00),
+    ("M0019", "Aislante XPS 40 mm",                             "m2",  4.80),
+    ("M0020", "Lana mineral 50 mm",                             "m2",  3.60),
+    ("M0021", "Poliuretano proyectado kit (e=3 cm)",            "m2",  9.80),
+    ("M0022", "Lámina EPDM 1.2 mm",                             "m2", 11.40),
+    ("M0023", "Lámina asfáltica SBS",                           "m2",  9.40),
+    ("M0024", "Membrana poliuretano líquido bicomp.",           "m2", 12.80),
+    ("M0025", "Canalón aluminio lacado 125 mm",                 "m",  13.20),
+    ("M0026", "Bajante PVC Ø110",                               "m",   8.60),
+    ("M0027", "Tubo PVC saneamiento Ø110",                      "m",   9.40),
+    ("M0028", "Teja árabe",                                     "ud",  0.52),
+    ("M0029", "Tablero hidrófugo cubierta e=22 mm",             "m2", 12.40),
+    ("M0030", "Juego puerta interior lacada (LH82)",            "ud", 195.00),
+    ("M0031", "Kit puerta corredera estructura+guías",          "ud", 280.00),
+    ("M0032", "Puerta acorazada blindada",                      "ud", 740.00),
+    ("M0033", "Ventana aluminio RPT (4+12+4)",                  "m2", 160.00),
+    ("M0034", "Ventana PVC 70 mm (4+12+4 bajo emisivo)",        "m2", 195.00),
+    ("M0035", "Persiana enrollable PVC + cajón",                "m2",  42.00),
+    ("M0036", "Mosquitera enrollable aluminio",                 "m2",  22.00),
+    ("M0037", "Lavabo porcelana mural + grifería monomando",    "ud", 145.00),
+    ("M0038", "Inodoro porcelana cisterna baja",                "ud", 165.00),
+    ("M0039", "Plato ducha 100×70 + grifería + mampara",        "ud", 240.00),
+    ("M0040", "Mecanismo enchufe 16 A calidad media",           "ud",  18.00),
+    ("M0041", "Mecanismo punto luz simple",                     "ud",  16.00),
+    ("M0042", "Tubo corrugado PVC Ø20 mm",                      "m",   0.38),
+    ("M0043", "Cable libre halógenos 2,5 mm²",                  "m",   0.68),
+    ("M0044", "Split inverter 2.500 frig",                      "ud", 950.00),
+    ("M0045", "Split inverter 4.500 frig",                      "ud", 1220.00),
+    ("M0046", "Aerotermia bi-bloque 8 kW",                      "ud", 6800.00),
+    ("M0047", "Suelo radiante panel + tubería",                 "m2",  38.00),
+    ("M0048", "Bloque hormigón 20×20×40",                       "ud",  1.28),
+    ("M0049", "Cuadro general 12 elementos modulares",          "ud", 220.00),
+    ("M0050", "Tarima césped artificial 30 mm",                 "m2", 14.80),
+    ("M0051", "Arqueta hormigón prefabricada 40×40",            "ud",  78.00),
+    ("M0052", "Adoquín hormigón 10×20×8",                       "m2",  18.00),
+    ("M0053", "Bordillo hormigón 12×25",                        "m",   6.40),
+    ("M0054", "Estuco veneciano kit dos manos",                 "m2",  12.40),
+    ("M0055", "Tubo PVC corrugado para canalización",           "m",   1.20),
+    ("M0056", "Perfilería + soporte falso techo registrable",   "m2",  9.80),
+    ("M0057", "Mortero monocapa proyectado",                    "kg",  0.42),
+    ("M0058", "Material auxiliar (resto)",                      "%",   1.00),
+]
+
+# Machinery catalogue (codes "Q0X").
+TARIFAS_MAQ: list[tuple[str, str, float]] = [
+    # (code, descripcion, tarifa_eur_h)
+    ("Q0001", "Compresor + martillo neumático manual", 18.40),
+    ("Q0002", "Miniretroexcavadora",                   38.00),
+    ("Q0003", "Camión basculante 12 m³",               42.00),
+    ("Q0004", "Hormigonera 250 L",                      4.20),
+    ("Q0005", "Cortadora cerámica",                     2.80),
+    ("Q0006", "Pala cargadora",                        45.00),
+    ("Q0007", "Andamio multidireccional alquiler",     12.00),
+]
+
+
+# Per-partida descompuesto templates.
+# Each entry: partida_code → list of (component_code, slot, share)
+#   slot ∈ {"mo", "mat", "maq"}
+#   share is the fraction of catalogue.{slot} this component represents.
+#   Shares within the same slot must sum to 1.0 (the generator scales the
+#   rendimientos so the resulting precio_unitario matches the catalogue).
+#
+# Covers the partidas the sample memorias hit, plus a few representative
+# extras per chapter. Partidas without a template fall back to the legacy
+# aggregated mo/mat/maq view in the Cuadro Nº 2.
+DESCOMPUESTOS: dict[str, list[tuple[str, str, float]]] = {
+    # --- Demoliciones (mo + small maq, almost no material consumption) ---
+    "PA-DEM-001": [("O0003", "mo", 1.0),  ("M0058", "mat", 1.0), ("Q0001", "maq", 1.0)],
+    "PA-DEM-002": [("O0003", "mo", 1.0),  ("M0058", "mat", 1.0), ("Q0001", "maq", 1.0)],
+    "PA-DEM-003": [("O0003", "mo", 0.7),  ("O0004", "mo", 0.3),
+                   ("M0058", "mat", 1.0), ("Q0001", "maq", 1.0)],
+    "PA-DEM-004": [("O0003", "mo", 1.0),  ("M0058", "mat", 1.0), ("Q0001", "maq", 1.0)],
+    "PA-DEM-005": [("O0003", "mo", 1.0),  ("M0058", "mat", 1.0), ("Q0005", "maq", 1.0)],
+    "PA-DEM-007": [("O0003", "mo", 1.0),  ("M0058", "mat", 1.0), ("Q0001", "maq", 1.0)],
+
+    # --- Movimiento de tierras ---
+    "PA-TER-001": [("O0003", "mo", 1.0),  ("M0058", "mat", 1.0), ("Q0002", "maq", 0.7), ("Q0003", "maq", 0.3)],
+    "PA-TER-002": [("O0003", "mo", 1.0),  ("M0058", "mat", 1.0), ("Q0002", "maq", 1.0)],
+
+    # --- Cimentación ---
+    "PA-CIM-001": [("O0004", "mo", 0.5),  ("O0003", "mo", 0.5),
+                   ("M0010", "mat", 1.0), ("Q0004", "maq", 1.0)],
+    "PA-CIM-002": [("O0005", "mo", 0.5),  ("O0006", "mo", 0.25), ("O0003", "mo", 0.25),
+                   ("M0010", "mat", 0.85), ("M0012", "mat", 0.15),
+                   ("Q0004", "maq", 1.0)],
+    "PA-CIM-006": [("O0004", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0010", "mat", 0.85), ("M0013", "mat", 0.15),
+                   ("Q0004", "maq", 1.0)],
+
+    # --- Estructura ---
+    "PA-EST-002": [("O0005", "mo", 0.5),  ("O0006", "mo", 0.3), ("O0003", "mo", 0.2),
+                   ("M0010", "mat", 0.7), ("M0012", "mat", 0.3),
+                   ("Q0004", "maq", 1.0)],
+
+    # --- Cubiertas ---
+    "PA-CUB-001": [("O0013", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0021", "mat", 0.4), ("M0022", "mat", 0.4), ("M0058", "mat", 0.2),
+                   ("Q0007", "maq", 1.0)],
+    "PA-CUB-003": [("O0013", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0028", "mat", 0.55), ("M0029", "mat", 0.45),
+                   ("Q0007", "maq", 1.0)],
+    "PA-CUB-004": [("O0013", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0022", "mat", 1.0)],
+
+    # --- Albañilería ---
+    "PA-ALB-001": [("O0004", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0001", "mat", 0.85), ("M0005", "mat", 0.15),
+                   ("Q0004", "maq", 1.0)],
+    "PA-ALB-002": [("O0004", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0002", "mat", 0.85), ("M0005", "mat", 0.15),
+                   ("Q0004", "maq", 1.0)],
+    "PA-ALB-003": [("O0015", "mo", 0.75), ("O0003", "mo", 0.25),
+                   ("M0003", "mat", 0.75), ("M0020", "mat", 0.25)],
+    "PA-ALB-004": [("O0015", "mo", 0.75), ("O0003", "mo", 0.25),
+                   ("M0003", "mat", 0.55), ("M0020", "mat", 0.45)],
+
+    # --- Aislamientos ---
+    "PA-AIS-001": [("O0014", "mo", 1.0),  ("M0019", "mat", 1.0)],
+    "PA-AIS-002": [("O0014", "mo", 1.0),  ("M0020", "mat", 1.0)],
+
+    # --- Revestimientos ---
+    "PA-REV-001": [("O0015", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0004", "mat", 1.0)],
+    "PA-REV-005": [("O0011", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0009", "mat", 0.7), ("M0006", "mat", 0.3),
+                   ("Q0005", "maq", 1.0)],
+    "PA-REV-006": [("O0011", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0007", "mat", 0.7), ("M0006", "mat", 0.3),
+                   ("Q0005", "maq", 1.0)],
+    "PA-REV-009": [("O0015", "mo", 0.75), ("O0003", "mo", 0.25),
+                   ("M0003", "mat", 0.6),  ("M0058", "mat", 0.4)],
+    "PA-REV-010": [("O0015", "mo", 0.75), ("O0003", "mo", 0.25),
+                   ("M0056", "mat", 1.0)],
+
+    # --- Pavimentos ---
+    "PA-PAV-001": [("O0011", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0007", "mat", 0.85), ("M0006", "mat", 0.15),
+                   ("Q0005", "maq", 1.0)],
+    "PA-PAV-002": [("O0011", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0008", "mat", 0.85), ("M0006", "mat", 0.15),
+                   ("Q0005", "maq", 1.0)],
+    "PA-PAV-003": [("O0011", "mo", 0.75), ("O0003", "mo", 0.25),
+                   ("M0017", "mat", 1.0)],
+    "PA-PAV-004": [("O0011", "mo", 0.75), ("O0003", "mo", 0.25),
+                   ("M0018", "mat", 1.0)],
+
+    # --- Carpintería ---
+    "PA-CRI-001": [("O0012", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0030", "mat", 1.0)],
+    "PA-CRI-002": [("O0012", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0031", "mat", 1.0)],
+    "PA-CRE-001": [("O0012", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0033", "mat", 1.0)],
+    "PA-CRE-002": [("O0012", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0034", "mat", 1.0)],
+    "PA-CRE-005": [("O0012", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0035", "mat", 1.0)],
+    "PA-CRE-004": [("O0012", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0032", "mat", 1.0)],
+
+    # --- Pintura ---
+    "PA-PIN-001": [("O0010", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0014", "mat", 1.0)],
+    "PA-PIN-002": [("O0010", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0016", "mat", 1.0)],
+    "PA-PIN-003": [("O0010", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0015", "mat", 1.0)],
+
+    # --- Fontanería / Saneamiento ---
+    "PA-FON-001": [("O0008", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0058", "mat", 0.4),
+                   ("M0037", "mat", 0.0),    # punto only, the lavabo lo pone otra partida
+                  ],
+    "PA-FON-005": [("O0008", "mo", 0.6),  ("O0003", "mo", 0.4),
+                   ("M0037", "mat", 1.0)],
+    "PA-FON-006": [("O0008", "mo", 0.6),  ("O0003", "mo", 0.4),
+                   ("M0038", "mat", 1.0)],
+    "PA-FON-007": [("O0008", "mo", 0.6),  ("O0003", "mo", 0.4),
+                   ("M0039", "mat", 1.0)],
+    "PA-SAN-001": [("O0008", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0027", "mat", 1.0)],
+
+    # --- Electricidad ---
+    "PA-ELE-001": [("O0007", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0041", "mat", 0.5), ("M0042", "mat", 0.2), ("M0043", "mat", 0.3)],
+    "PA-ELE-002": [("O0007", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0041", "mat", 0.4), ("M0042", "mat", 0.25), ("M0043", "mat", 0.35)],
+    "PA-ELE-003": [("O0007", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0040", "mat", 0.5), ("M0042", "mat", 0.2), ("M0043", "mat", 0.3)],
+    "PA-ELE-005": [("O0007", "mo", 0.7),  ("O0003", "mo", 0.3),
+                   ("M0049", "mat", 1.0)],
+
+    # --- Climatización ---
+    "PA-CLI-001": [("O0009", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0044", "mat", 1.0)],
+    "PA-CLI-002": [("O0009", "mo", 0.8),  ("O0003", "mo", 0.2),
+                   ("M0045", "mat", 1.0)],
+    "PA-CLI-003": [("O0009", "mo", 0.85), ("O0003", "mo", 0.15),
+                   ("M0046", "mat", 1.0)],
+    "PA-CLI-004": [("O0009", "mo", 0.75), ("O0003", "mo", 0.25),
+                   ("M0047", "mat", 1.0)],
+}
+
+
 def write_catalogue() -> None:
     rows = []
     for chap_code, n, _concept, unidad, total, desc in PARTIDAS:
@@ -287,6 +538,95 @@ def write_materials() -> None:
         for code, desc, unidad, qty, partida_code, merma in MATERIALS:
             w.writerow([code, desc, unidad, qty, partida_code, merma])
     print(f"Wrote {len(MATERIALS)} material lines -> {out.relative_to(ROOT)}")
+
+
+def write_factor_catalogues() -> None:
+    """Write the labor / material / machinery master catalogues."""
+    for fname, rows, header in (
+        ("labor.csv",     TARIFAS_MO,  ["code", "descripcion", "tarifa_eur_h"]),
+        ("materials.csv", PRECIOS_MAT, ["code", "descripcion", "unidad", "precio"]),
+        ("machinery.csv", TARIFAS_MAQ, ["code", "descripcion", "tarifa_eur_h"]),
+    ):
+        out = ROOT / "precios" / fname
+        with out.open("w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(header)
+            for row in rows:
+                w.writerow(row)
+        print(f"Wrote {len(rows):3d} rows -> {out.relative_to(ROOT)}")
+
+
+def write_descompuestos() -> None:
+    """Emit one CSV row per (partida, component) with the computed rendimiento.
+
+    Rendimientos are scaled so the recomposed unit price matches the
+    catalogue total per partida exactly (modulo rounding). This way the
+    Cuadro Nº 2 lines up with the budget the client sees.
+    """
+    labor_price = {c: p for c, _, p in TARIFAS_MO}
+    mat_price   = {c: p for c, _, _, p in PRECIOS_MAT}
+    maq_price   = {c: p for c, _, p in TARIFAS_MAQ}
+
+    # Look up catalogue mo/mat/maq totals per partida by code.
+    partida_totals: dict[str, tuple[float, float, float]] = {}
+    for chap_code, n, _concept, _unidad, total, _desc in PARTIDAS:
+        _name, mo_p, mat_p, maq_p, indir = CHAPTER_RATIOS[chap_code]
+        base = total / (1 + indir)
+        partida_totals[code_for(chap_code, n)] = (
+            round(base * mo_p,  2),
+            round(base * mat_p, 2),
+            round(base * maq_p, 2),
+        )
+
+    rows: list[list] = []
+    for partida_code, comps in DESCOMPUESTOS.items():
+        if partida_code not in partida_totals:
+            continue
+        mo_total, mat_total, maq_total = partida_totals[partida_code]
+        slot_totals = {"mo": mo_total, "mat": mat_total, "maq": maq_total}
+
+        # Group by slot and normalise share sums to 1.0.
+        by_slot: dict[str, list[tuple[str, float]]] = {"mo": [], "mat": [], "maq": []}
+        for code, slot, share in comps:
+            if share <= 0:
+                continue
+            by_slot[slot].append((code, share))
+        for slot, items in by_slot.items():
+            if not items:
+                continue
+            share_sum = sum(s for _, s in items)
+            if share_sum <= 0:
+                continue
+            for code, share in items:
+                norm_share = share / share_sum
+                importe = slot_totals[slot] * norm_share
+                if slot == "mo":
+                    price = labor_price.get(code, 1.0)
+                    unidad = "h"
+                elif slot == "maq":
+                    price = maq_price.get(code, 1.0)
+                    unidad = "h"
+                else:
+                    price = mat_price.get(code, 1.0)
+                    unidad = next((u for c, _, u, _ in PRECIOS_MAT if c == code), "ud")
+                if price <= 0:
+                    continue
+                rendimiento = round(importe / price, 4)
+                rows.append([
+                    partida_code, slot, code, unidad,
+                    f"{rendimiento:.4f}",
+                    f"{price:.4f}",
+                    f"{round(rendimiento * price, 2):.2f}",
+                ])
+
+    out = ROOT / "precios" / "descompuestos.csv"
+    with out.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["partida_code", "slot", "comp_code", "unidad",
+                    "rendimiento", "precio_unitario", "importe"])
+        w.writerows(rows)
+    print(f"Wrote {len(rows)} descompuesto rows -> {out.relative_to(ROOT)} "
+          f"({len(DESCOMPUESTOS)} partidas with detailed breakdown)")
 
 
 def write_metadata() -> None:
@@ -358,5 +698,7 @@ def patch_rules_json() -> None:
 if __name__ == "__main__":
     write_catalogue()
     write_materials()
+    write_factor_catalogues()
+    write_descompuestos()
     write_metadata()
     patch_rules_json()

@@ -438,6 +438,51 @@ def load_material_lines() -> list[dict]:
     return rows
 
 
+def load_descompuestos() -> dict[str, list[dict]]:
+    """Load precios/descompuestos.csv, return {partida_code: [rows]}.
+    Each row carries the labor/material/machinery breakdown for cuadro Nº 2.
+    The descripción is joined from the master labor / materials / machinery
+    catalogues so the renderer can show human-readable component names."""
+    out: dict[str, list[dict]] = {}
+    desc_path = PRECIOS / "descompuestos.csv"
+    if not desc_path.exists():
+        return out
+
+    def _load_master(name: str, key: str) -> dict[str, dict]:
+        p = PRECIOS / name
+        d: dict[str, dict] = {}
+        if not p.exists():
+            return d
+        with p.open(encoding="utf-8") as fh:
+            for r in csv.DictReader(fh):
+                d[r[key]] = r
+        return d
+
+    labor    = _load_master("labor.csv",     "code")
+    material = _load_master("materials.csv", "code")
+    maquin   = _load_master("machinery.csv", "code")
+
+    with desc_path.open(encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            slot = row["slot"]
+            code = row["comp_code"]
+            master = (labor if slot == "mo"
+                      else maquin if slot == "maq"
+                      else material)
+            descripcion = (master.get(code, {}).get("descripcion") or code)
+            entry = {
+                "slot": slot,
+                "comp_code": code,
+                "descripcion": descripcion,
+                "unidad": row.get("unidad") or "",
+                "rendimiento": float(row.get("rendimiento") or 0),
+                "precio_unitario": float(row.get("precio_unitario") or 0),
+                "importe": float(row.get("importe") or 0),
+            }
+            out.setdefault(row["partida_code"], []).append(entry)
+    return out
+
+
 # --------------------------------------------------------------------------
 # Knowledge bridge — concept → price code, ámbito priority. Read from rules.json
 # so it stays editable knowledge, not Python.
@@ -446,8 +491,6 @@ def load_material_lines() -> list[dict]:
 def bind_prices_to_partidas(wm: engine.WorkingMemory, rules_spec: dict) -> None:
     """For every `partida-pendiente`, find the price by concept→code map and
     the ámbito priority, then assert a fully-priced `partida` fact."""
-    # Prefer the rich concepto_metadata table (which has unidad + capítulo too);
-    # fall back to legacy concepto_to_price for backward compatibility.
     metadata = rules_spec.get("concepto_metadata", {})
     concept_to_code = {k: v["price_code"] for k, v in metadata.items()
                        if isinstance(v, dict) and v.get("price_code")}
@@ -456,6 +499,7 @@ def bind_prices_to_partidas(wm: engine.WorkingMemory, rules_spec: dict) -> None:
             concept_to_code.setdefault(k, v)
     priority = (rules_spec.get("parameters", {})
                           .get("ambito_precios_prioridad", ["local"]))
+    descompuestos = load_descompuestos()
 
     prices_by_code: dict[str, list[engine.Fact]] = {}
     for p in wm.query("price"):
@@ -499,7 +543,7 @@ def bind_prices_to_partidas(wm: engine.WorkingMemory, rules_spec: dict) -> None:
         mat = float(price.get("mat") or 0.0)
         maq = float(price.get("maq") or 0.0)
         indir = float(price.get("indirectos_pct") or 0.0)
-        wm.assert_fact("partida", {
+        partida_data = {
             "code": f"P{counter:03d}",
             "capitulo": pp["capitulo"],
             "descripcion": price["descripcion"],
@@ -511,7 +555,12 @@ def bind_prices_to_partidas(wm: engine.WorkingMemory, rules_spec: dict) -> None:
             "indirectos_pct": indir,
             "price_ref": code,
             "scope_ref": pp.get("scope_ref"),
-        }, produced_by="bind_prices_to_partidas")
+        }
+        comp_rows = descompuestos.get(code)
+        if comp_rows:
+            partida_data["descompuesto"] = comp_rows
+        wm.assert_fact("partida", partida_data,
+                       produced_by="bind_prices_to_partidas")
 
 
 def explode_material_lines(wm: engine.WorkingMemory, materials: list[dict]) -> None:

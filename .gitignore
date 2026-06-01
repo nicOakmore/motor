@@ -4,9 +4,11 @@ __pycache__/
 .env
 .DS_Store
 
-# Generated artefacts — kept in the repo only when explicitly committed
-salidas/memoria_*/
-salidas/jobs/
+# Generated artefacts: every job output dir lives only on the local FS.
+# The explainer PDF salidas/como_funciona.pdf is the only file we keep
+# tracked under salidas/.
+salidas/*/
+!salidas/como_funciona.pdf
 
 # Local IDE
 .idea/

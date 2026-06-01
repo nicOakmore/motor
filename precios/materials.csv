@@ -1,0 +1,59 @@
+code,descripcion,unidad,precio
+M0001,Ladrillo hueco del 7 (24×11.5×7 cm),ud,0.18
+M0002,Ladrillo hueco del 9 (24×11.5×9 cm),ud,0.22
+M0003,Placa de yeso laminado 15 mm,m2,4.8
+M0004,Yeso negro YG saco 25 kg,kg,0.12
+M0005,"Cemento Portland CEM-II/B-M 32,5R",kg,0.12
+M0006,Mortero cola para gres porcelánico,kg,0.38
+M0007,Baldosa gres porcelánico 60×60,m2,18.5
+M0008,Baldosa gres porcelánico 80×80 rectificado,m2,26.4
+M0009,Azulejo cerámico 20×20,m2,9.8
+M0010,Hormigón HA-25/B/20/IIa central,m3,78.0
+M0011,Hormigón HA-30/B/20/IIa central,m3,84.0
+M0012,Acero corrugado B500S,kg,0.88
+M0013,Mallazo electrosoldado 15×15×6,m2,3.4
+M0014,Pintura plástica blanca interior,kg,2.8
+M0015,Pintura al silicato exterior,kg,6.6
+M0016,Pintura plástica satinada lavable,kg,3.9
+M0017,Tarima flotante laminada AC4,m2,16.8
+M0018,Tarima maciza roble 22 mm,m2,52.0
+M0019,Aislante XPS 40 mm,m2,4.8
+M0020,Lana mineral 50 mm,m2,3.6
+M0021,Poliuretano proyectado kit (e=3 cm),m2,9.8
+M0022,Lámina EPDM 1.2 mm,m2,11.4
+M0023,Lámina asfáltica SBS,m2,9.4
+M0024,Membrana poliuretano líquido bicomp.,m2,12.8
+M0025,Canalón aluminio lacado 125 mm,m,13.2
+M0026,Bajante PVC Ø110,m,8.6
+M0027,Tubo PVC saneamiento Ø110,m,9.4
+M0028,Teja árabe,ud,0.52
+M0029,Tablero hidrófugo cubierta e=22 mm,m2,12.4
+M0030,Juego puerta interior lacada (LH82),ud,195.0
+M0031,Kit puerta corredera estructura+guías,ud,280.0
+M0032,Puerta acorazada blindada,ud,740.0
+M0033,Ventana aluminio RPT (4+12+4),m2,160.0
+M0034,Ventana PVC 70 mm (4+12+4 bajo emisivo),m2,195.0
+M0035,Persiana enrollable PVC + cajón,m2,42.0
+M0036,Mosquitera enrollable aluminio,m2,22.0
+M0037,Lavabo porcelana mural + grifería monomando,ud,145.0
+M0038,Inodoro porcelana cisterna baja,ud,165.0
+M0039,Plato ducha 100×70 + grifería + mampara,ud,240.0
+M0040,Mecanismo enchufe 16 A calidad media,ud,18.0
+M0041,Mecanismo punto luz simple,ud,16.0
+M0042,Tubo corrugado PVC Ø20 mm,m,0.38
+M0043,"Cable libre halógenos 2,5 mm²",m,0.68
+M0044,Split inverter 2.500 frig,ud,950.0
+M0045,Split inverter 4.500 frig,ud,1220.0
+M0046,Aerotermia bi-bloque 8 kW,ud,6800.0
+M0047,Suelo radiante panel + tubería,m2,38.0
+M0048,Bloque hormigón 20×20×40,ud,1.28
+M0049,Cuadro general 12 elementos modulares,ud,220.0
+M0050,Tarima césped artificial 30 mm,m2,14.8
+M0051,Arqueta hormigón prefabricada 40×40,ud,78.0
+M0052,Adoquín hormigón 10×20×8,m2,18.0
+M0053,Bordillo hormigón 12×25,m,6.4
+M0054,Estuco veneciano kit dos manos,m2,12.4
+M0055,Tubo PVC corrugado para canalización,m,1.2
+M0056,Perfilería + soporte falso techo registrable,m2,9.8
+M0057,Mortero monocapa proyectado,kg,0.42
+M0058,Material auxiliar (resto),%,1.0

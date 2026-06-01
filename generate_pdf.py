@@ -117,6 +117,7 @@ def build() -> pathlib.Path:
     story.append(Paragraph("El cómputo regulado (RD 1098/2001)", h2))
     cost_rows = [
         ("PEM", "Presupuesto de Ejecución Material", "Σ partidas (medición × precio unitario)"),
+        ("PU", "Precio unitario por partida", "(Σ mo + mat + maq) × (1 + indirectos) · ver Cuadro Nº 2"),
         ("GG", "Gastos Generales", "13% · PEM"),
         ("BI", "Beneficio Industrial", "6% · PEM"),
         ("PEC", "Presupuesto de Ejecución por Contrata", "PEM + GG + BI"),
