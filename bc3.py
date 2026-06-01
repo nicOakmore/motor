@@ -24,6 +24,12 @@ Record types this engine cares about:
   ~M  Medicion: medición de una partida dentro de un capítulo.
       ~M | CODIGO_PADRE\CODIGO_HIJO | POSICION | MEDICIONES_TOTAL | COMENTARIO | TIPO
 
+  ~T  Texto / pliego: especificaciones técnicas asociadas a un concepto.
+      ~T | CODIGO | TEXTO |
+      FIEBDC uses 0x06 (or '\x1F' depending on emitter) to delimit
+      embedded line breaks within the TEXTO field. We treat both as
+      newlines on read, and emit '\r\n' on write.
+
 This module reads/writes the subset of FIEBDC-3 needed to round-trip
 a presupuesto. Spec: www.fiebdc.org (vigente FIEBDC-3/2024).
 """
@@ -116,6 +122,7 @@ def parse_bc3_full(text: str) -> dict:
     conceptos: dict[str, dict] = {}
     descomposicion: dict[str, list[dict]] = {}
     mediciones: list[dict] = []
+    pliegos: dict[str, str] = {}            # codigo → texto técnico (~T)
     indirectos_pct = 0.0     # default; overridden by ~K
 
     for rec in _split_records(text):
@@ -197,6 +204,23 @@ def parse_bc3_full(text: str) -> dict:
                                   "rendimiento": rendim})
             if children:
                 descomposicion[parent] = children
+
+        elif tag == "T":
+            if len(f) < 2:
+                continue
+            code = f[0].strip()
+            # FIEBDC uses 0x06 / 0x1F as embedded line-break sentinels;
+            # normalise to plain newlines on read.
+            texto = (f[1].replace("\x06", "\n")
+                          .replace("\x1f", "\n")
+                          .replace("\\n", "\n")
+                          .strip())
+            if code and texto:
+                # Concatenate when multiple ~T records target the same code.
+                if code in pliegos:
+                    pliegos[code] = pliegos[code] + "\n" + texto
+                else:
+                    pliegos[code] = texto
 
         elif tag == "M":
             if not f:
@@ -308,6 +332,7 @@ def parse_bc3_full(text: str) -> dict:
             "indirectos_pct": indirectos_pct,
             "price_ref": code,
             "descompuesto": descompuesto,
+            "pliego": pliegos.get(code, ""),
         })
 
     return {
@@ -315,6 +340,7 @@ def parse_bc3_full(text: str) -> dict:
         "conceptos": conceptos,
         "descomposicion": descomposicion,
         "mediciones": mediciones,
+        "pliegos": pliegos,
         "partidas": partidas,
     }
 
@@ -424,6 +450,16 @@ def write_bc3(partidas: Iterable[dict],
         med = _fmt_num(float(p.get("medicion") or 0), 2)
         lines.append(f"~M|{cap_code}\\{code}||{med}|||")
 
+        # ~T pliego (technical specifications) for the partida
+        pliego = (p.get("pliego") or "").strip()
+        if pliego:
+            # FIEBDC embeds line breaks inside the TEXTO field using \x06;
+            # the literal '|' would corrupt the record so we escape it.
+            safe = (pliego.replace("|", "/")
+                          .replace("\r\n", "\x06")
+                          .replace("\n", "\x06"))
+            lines.append(f"~T|{code}|{safe}|")
+
     out = "\r\n".join(lines) + "\r\n\x1a"
     return out
 
@@ -442,6 +478,10 @@ if __name__ == "__main__":
         "precio_unitario": 22.50,
         "importe": 900.0,
         "indirectos_pct": 0.06,
+        "pliego": ("Tabique de ladrillo hueco del 7 (LH7) tomado con "
+                   "mortero de cemento 1:6.\n"
+                   "Recibido a cara vista con regla y plomo, juntas matadas.\n"
+                   "Control de planeidad ≤ 5 mm en 2 m según CTE-DB-SE."),
         "descompuesto": [
             {"comp_code": "O0004", "descripcion": "Oficial 1ª albañil",
              "unidad": "h", "rendimiento": 0.3334, "precio_unitario": 24.50,
@@ -452,8 +492,8 @@ if __name__ == "__main__":
         ],
     }]
     text = write_bc3(partidas)
-    print("=== BC3 emitted ===")
-    print(text)
+    print("=== BC3 emitted (T encoded with \\x06 line breaks) ===")
+    print(repr(text))
     print()
     print("=== parse_bc3_full(round-tripped) ===")
     parsed = parse_bc3_full(text)
@@ -464,3 +504,5 @@ if __name__ == "__main__":
         for c in p["descompuesto"]:
             print(f"     {c['slot']:3s} {c['comp_code']}  rendim={c['rendimiento']}  "
                   f"pu={c['precio_unitario']}  importe={c['importe']}")
+        if p.get("pliego"):
+            print(f"     pliego: {p['pliego'][:60]}…")
