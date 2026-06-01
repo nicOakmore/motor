@@ -227,10 +227,14 @@ HUECOS_SUM_RE = re.compile(
 )
 
 
-def _read_memoria_text(path: pathlib.Path) -> str:
+def _read_memoria_text(path: pathlib.Path,
+                       max_pages: int = 60) -> str:
     """Return the memoria's text content. Supports .md / .txt directly and
-    .pdf via pdfplumber. Other formats fall back to raw bytes decoded as
-    UTF-8 (lossy) — better than nothing."""
+    .pdf via pdfplumber. Caps the PDF at `max_pages` pages — proyectos
+    técnicos run to hundreds of pages and the metadata + scope sit at the
+    top; reading the whole thing OOMs the Render free-tier worker.
+
+    Other formats fall back to raw bytes decoded as UTF-8 (lossy)."""
     suf = path.suffix.lower()
     if suf == ".pdf":
         try:
@@ -241,13 +245,16 @@ def _read_memoria_text(path: pathlib.Path) -> str:
             ) from exc
         parts: list[str] = []
         with pdfplumber.open(str(path)) as pdf:
-            for page in pdf.pages:
+            for idx, page in enumerate(pdf.pages):
+                if idx >= max_pages:
+                    break
                 t = page.extract_text() or ""
                 parts.append(t)
+                # Release per-page caches as we go.
+                page.flush_cache()
         return "\n".join(parts)
     if suf in (".md", ".txt", ""):
         return path.read_text(encoding="utf-8", errors="replace")
-    # Last-resort attempt
     return path.read_text(encoding="utf-8", errors="replace")
 
 
