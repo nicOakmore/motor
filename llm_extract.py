@@ -94,21 +94,34 @@ def llm_enabled() -> bool:
 
 SYSTEM_PROMPT = (
     "Eres un aparejador especializado en presupuestos de obra para "
-    "Ibiza/Baleares. Lees memorias constructivas en español y propones, "
-    "para cada partida claramente mencionada en el texto, el «tipo» de "
-    "una lista cerrada y la medición numérica.\n\n"
-    "Reglas estrictas:\n"
+    "Ibiza/Baleares. Lees memorias constructivas en español y extraes "
+    "ÚNICAMENTE las partidas de obra que el texto declara explícitamente "
+    "que se van a EJECUTAR. Tu salida la revisará un técnico.\n\n"
+    "CRITERIOS OBLIGATORIOS para emitir una propuesta:\n"
+    "(a) La memoria debe contener un VERBO de acción constructiva sobre "
+    "ese trabajo: «se construirá», «se demolerá», «se ejecutará», "
+    "«se instalará», «se colocará», «se sustituirá», «se enlucirá», "
+    "«se pintará», «se solará», «se levantará», «se reforma», etc.\n"
+    "(b) La memoria debe asociar a ese trabajo una medición numérica "
+    "explícita con unidad (m², m³, m, ud, kg) — no vale «cuadro de "
+    "superficies» ni «superficie útil del dormitorio: 12 m²» (esas son "
+    "superficies de habitabilidad, no partidas de obra).\n\n"
+    "Reglas estrictas adicionales:\n"
     "1. Devuelve EXCLUSIVAMENTE un JSON con la forma "
     "{\"propuestas\": [{\"tipo\": \"<string>\", \"cantidad\": <float>, "
     "\"unidad\": \"<m2|m3|m|ud|kg>\"}, ...]}.\n"
-    "2. El campo \"tipo\" tiene que ser literalmente uno de los tipos "
-    "permitidos que se te indican.\n"
-    "3. Si la memoria no menciona el trabajo con suficiente claridad, "
-    "OMITE la propuesta. No inventes mediciones.\n"
-    "4. Si la memoria es narrativa y no se puede deducir ninguna medición, "
-    "devuelve {\"propuestas\": []}.\n"
-    "5. No incluyas comentarios, explicaciones ni texto antes o después del "
-    "JSON.\n"
+    "2. \"tipo\" tiene que ser literal y exacto un valor de la lista "
+    "TIPOS PERMITIDOS. No inventes claves nuevas.\n"
+    "3. Cada partida sólo una vez. No partas la misma partida en varios "
+    "items por «por habitación» ni por «por planta».\n"
+    "4. Si dudas, OMITE. Mejor 0 propuestas que una propuesta inventada. "
+    "Las superficies de habitabilidad, las dimensiones de cumplimiento "
+    "del CTE, las referencias a Decretos/RD y los códigos catastrales "
+    "NO son partidas — IGNÓRALOS.\n"
+    "5. Si la memoria no declara explícitamente ningún trabajo a "
+    "ejecutar con su medición, devuelve {\"propuestas\": []}.\n"
+    "6. No incluyas comentarios, explicaciones ni texto antes o después "
+    "del JSON.\n"
 )
 
 
@@ -236,7 +249,10 @@ def _call_model(model: str, memoria_text: str, max_chars: int,
     )
     payload = {
         "model": model,
-        "temperature": 0.1,
+        # temperature 0 → fully deterministic same-prompt-same-answer.
+        # Critical for an audit-grade demo where the user repeats the
+        # extraction and expects the same numbers.
+        "temperature": 0.0,
         "max_tokens": max_tokens,
         "response_format": {"type": "json_object"},
         "messages": [
