@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Resultado — {{ manifest.memoria_name }}{% endblock %}
+{% block content %}
+
+{% set t = manifest.totales %}
+{% set meta = manifest.meta %}
+
+<section class="hero">
+  <h1>Resultado: <small>{{ manifest.memoria_name }}</small></h1>
+  <p class="muted">
+    Suelo <strong>{{ meta.suelo }}</strong> ·
+    Uso <strong>{{ meta.uso }}</strong> ·
+    Proyecto técnico <strong>{{ 'sí' if meta.requiere_proyecto else 'no' }}</strong>
+  </p>
+</section>
+
+<section class="card totals">
+  <h2>Cuadro resumen (RD 1098/2001)</h2>
+  <table class="totals-table">
+    <tbody>
+      <tr><td>PEM</td><td class="num">{{ t.PEM | eur }}</td></tr>
+      <tr><td>GG ({{ (t.gg_pct * 100) | round(0, 'floor') | int }}%)</td><td class="num">{{ t.GG | eur }}</td></tr>
+      <tr><td>BI ({{ (t.bi_pct * 100) | round(0, 'floor') | int }}%)</td><td class="num">{{ t.BI | eur }}</td></tr>
+      <tr class="emph"><td>PEC</td><td class="num">{{ t.PEC | eur }}</td></tr>
+      <tr><td>IVA ({{ (t.iva_pct * 100) | round(0, 'floor') | int }}%)</td><td class="num">{{ t.IVA | eur }}</td></tr>
+      <tr class="grand"><td>TOTAL</td><td class="num">{{ t.TOTAL | eur }}</td></tr>
+      <tr class="muted"><td>ICIO (orientativo, sobre PEM)</td><td class="num">{{ t.ICIO | eur }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+{% if manifest.flags %}
+<section class="card flags">
+  <h2>Checklist regulatorio</h2>
+  {% for f in manifest.flags %}
+    <div class="flag flag-{{ f.nivel | lower }}">
+      <strong>[{{ f.nivel }}] {{ f.codigo }}</strong>
+      <div>{{ f.mensaje }}</div>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Partidas por capítulo</h2>
+  {% for cap, partidas in grouped %}
+    <h3 class="cap">{{ cap }}</h3>
+    <table class="partidas">
+      <thead>
+        <tr>
+          <th>Code</th><th>Descripción</th><th>Ud</th>
+          <th class="num">Medición</th><th class="num">Precio ud</th><th class="num">Importe</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(sub=0) %}
+        {% for p in partidas %}
+          {% set ns.sub = ns.sub + p.importe %}
+          <tr>
+            <td>{{ p.code }}</td>
+            <td>{{ p.descripcion }}</td>
+            <td>{{ p.unidad }}</td>
+            <td class="num">{{ '%.2f' | format(p.medicion) }}</td>
+            <td class="num">{{ p.precio_unitario | eur }}</td>
+            <td class="num">{{ p.importe | eur }}</td>
+          </tr>
+        {% endfor %}
+        <tr class="sub">
+          <td colspan="5">Subtotal</td>
+          <td class="num">{{ ns.sub | eur }}</td>
+        </tr>
+      </tbody>
+    </table>
+  {% endfor %}
+</section>
+
+{% if manifest.acopios %}
+<section class="card">
+  <h2>Plan de acopios</h2>
+  <table class="partidas">
+    <thead>
+      <tr><th>Material</th><th>Descripción</th><th>Ud</th><th class="num">Cantidad</th></tr>
+    </thead>
+    <tbody>
+      {% for a in manifest.acopios %}
+        <tr>
+          <td>{{ a.material_code }}</td>
+          <td>{{ a.descripcion }}</td>
+          <td>{{ a.unidad }}</td>
+          <td class="num">{{ '%.3f' | format(a.cantidad) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section class="card downloads">
+  <h2>Descargas</h2>
+  <ul class="downloads-list">
+    {% for name in artefacts %}
+      <li>
+        <a href="{{ url_for('download', job_id=job_id, filename=name) }}">{{ name }}</a>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<p><a class="back" href="{{ url_for('index') }}">← Procesar otra memoria</a></p>
+
+{% endblock %}

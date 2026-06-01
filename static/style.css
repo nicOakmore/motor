@@ -1,0 +1,125 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --ink: #1a1f2c;
+  --muted: #5a6072;
+  --brand: #1a3a5c;
+  --brand-2: #2d5d8d;
+  --line: #e3e6ec;
+  --good: #1f7a4d;
+  --warn: #a86b00;
+  --stop: #b1342f;
+  --info: #14638a;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+
+header {
+  background: var(--brand);
+  color: #fff;
+  padding: 18px 0;
+  margin-bottom: 28px;
+}
+header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.brand {
+  color: #fff; text-decoration: none; font-weight: 700; font-size: 18px;
+  display: flex; flex-direction: column; line-height: 1.1;
+}
+.brand .sub {
+  font-weight: 400; font-size: 11px; opacity: .75; margin-top: 3px;
+}
+header nav a {
+  color: #fff; text-decoration: none; opacity: .85; font-size: 14px;
+  border: 1px solid rgba(255,255,255,.35); padding: 6px 12px; border-radius: 6px;
+}
+header nav a:hover { opacity: 1; background: rgba(255,255,255,.08); }
+
+main.wrap { padding-bottom: 60px; }
+
+.hero h1 {
+  font-size: 22px; margin: 0 0 8px; color: var(--brand);
+}
+.hero p { color: var(--muted); margin: 0 0 24px; }
+.hero small { color: var(--muted); font-weight: 400; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.card h2 {
+  margin: 0 0 12px; font-size: 16px; color: var(--brand);
+}
+.card.subtle { background: #fbfcfd; }
+.card.subtle ul { margin: 0; padding-left: 18px; }
+.card.subtle li { margin-bottom: 4px; }
+
+.row-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row-form select, .row-form input[type=file] {
+  flex: 1; min-width: 220px;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: #fff; font-size: 14px;
+}
+
+button.primary {
+  background: var(--brand-2); color: #fff; border: 0; cursor: pointer;
+  padding: 9px 16px; border-radius: 6px; font-size: 14px; font-weight: 600;
+}
+button.primary:hover { background: var(--brand); }
+
+.muted { color: var(--muted); font-size: 13px; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); border: 0;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--line); }
+th { background: #fafbfd; color: var(--brand); font-weight: 600; font-size: 13px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.totals-table td { padding: 8px 10px; }
+.totals-table tr.emph td { font-weight: 600; background: #fafbfd; }
+.totals-table tr.grand td { font-weight: 700; background: #eef4fb; color: var(--brand); }
+.totals-table tr.muted td { color: var(--muted); }
+
+.partidas h3.cap, h3.cap {
+  margin: 18px 0 6px; color: var(--brand); font-size: 14px; font-weight: 700;
+}
+table.partidas tr.sub td { font-weight: 700; background: #fafbfd; }
+
+.flag {
+  padding: 10px 12px; border-left: 4px solid var(--info); background: #f0f6fb;
+  border-radius: 4px; margin-bottom: 8px;
+}
+.flag.flag-warn { border-color: var(--warn); background: #fdf6e6; }
+.flag.flag-stop { border-color: var(--stop); background: #fbeae9; }
+.flag.flag-info { border-color: var(--info); background: #eef5fb; }
+.flag strong { display: block; margin-bottom: 2px; }
+
+.downloads-list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.downloads-list li a {
+  display: inline-block; padding: 7px 12px; background: #f1f4f9;
+  border: 1px solid var(--line); border-radius: 6px;
+  text-decoration: none; color: var(--brand);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+}
+.downloads-list li a:hover { background: #e8edf5; }
+
+.back { color: var(--brand); }
+
+footer.wrap { color: var(--muted); padding-top: 20px; border-top: 1px solid var(--line); margin-top: 30px; }
+
+.card.error h1 { color: var(--stop); margin-top: 0; }

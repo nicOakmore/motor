@@ -1,0 +1,7 @@
+Flask==3.0.3
+gunicorn==23.0.0
+reportlab==4.2.5
+# Optional, for richer ingest at the edges (not required by the demo):
+# openpyxl==3.1.5         # read XLSX price lists in ./precios/
+# pdfplumber==0.11.4      # extract text/tables from memorias and PDF price lists
+# clips==1.0.6            # native CLIPS 6.4 engine (engine.py is pure-Python by default)

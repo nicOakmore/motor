@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Motor de Presupuestos{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="{{ url_for('index') }}">
+        Motor de Presupuestos
+        <span class="sub">Oakmore Labs · Ibiza/Baleares</span>
+      </a>
+      <nav>
+        <a href="{{ url_for('how_pdf') }}">Cómo funciona (PDF)</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="wrap">
+    <small>
+      Demo. RD 1098/2001 · Ley 37/1992 · LUIB 12/2017.
+      Los presupuestos generados son orientativos: requieren validación técnica.
+    </small>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.DS_Store
+
+# Generated artefacts — kept in the repo only when explicitly committed
+salidas/memoria_*/
+salidas/jobs/
+
+# Local IDE
+.idea/
+.vscode/
