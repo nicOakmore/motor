@@ -33,29 +33,43 @@ REPO_RAW = "https://raw.githubusercontent.com/nicOakmore/motor/main/memorias"
 
 SAMPLES = [
     ("memoria_santa_eulalia.md",
-     "Reforma vivienda urbana Santa Eulària (Markdown)",
-     "Ejemplo sencillo: tabique, enlucido, pintura, solado. Vivienda "
-     "habitual, NO requiere proyecto técnico. <b>PEM 3.126,40 €</b>, "
+     "Vivienda urbana Santa Eulària · Markdown",
+     "Reforma sencilla en Markdown: tabique, enlucido, pintura, solado. "
+     "Vivienda habitual, NO requiere proyecto técnico. <b>PEM 3.126,40 €</b>, "
      "TOTAL 4.092,45 €."),
     ("memoria_rustico_ibiza.md",
-     "Ampliación en finca rústica Ibiza (Markdown)",
+     "Finca rústica Ibiza · Markdown",
      "Suelo rústico → STOP. Requiere proyecto técnico, se generan los 4 "
      "anexos regulatorios. <b>PEM 3.837,50 €</b>, TOTAL 5.023,29 €."),
     ("memoria_finca_turistica.md",
-     "Finca para alquiler turístico San Antonio (Markdown)",
-     "Cubierta + fachada + uso turístico → dispara las 6 banderas. "
+     "Finca alquiler turístico San Antonio · Markdown",
+     "Cubierta + fachada + uso turístico → 6 banderas. "
      "<b>PEM 22.904,90 €</b>, TOTAL 29.982,51 €."),
     ("memoria_santa_eulalia.pdf",
-     "Igual que la anterior, en formato PDF",
-     "El mismo contenido renderizado a PDF para demostrar que el motor "
-     "extrae partidas también de PDFs estructurados."),
+     "Igual que la primera, en formato PDF",
+     "El mismo contenido en PDF — el parser extrae 5 partidas también de un "
+     "PDF estructurado. <b>PEM 3.126,40 €</b>."),
     ("memoria_rustico_ibiza.pdf",
-     "Igual que la rústica, en formato PDF",
-     "El mismo contenido en PDF — dispara la bandera STOP rústico y "
-     "genera los 4 anexos regulatorios."),
+     "Igual que la rústica, en PDF",
+     "El mismo contenido en PDF — dispara STOP rústico y genera anexos."),
     ("memoria_finca_turistica.pdf",
-     "Igual que la turística, en formato PDF",
+     "Igual que la turística, en PDF",
      "El mismo contenido en PDF — dispara las 6 banderas regulatorias."),
+    ("santjosep_ibiza.pdf",
+     "Proyecto Sant Josep de sa Talaia · PDF real (240 pp)",
+     "Memoria oficial de un Ayuntamiento. Narrativa pura, sin scope "
+     "numerado. El parser saca metadata y la <b>IA propone partidas</b> "
+     "contra el catálogo. En la última corrida: PEM 90.667,90 € · TOTAL "
+     "118.684,28 €."),
+    ("porreres_mallorca.pdf",
+     "Cambio a agroturismo Porreres · PDF real",
+     "Memoria de cambio de uso (agroturismo). Suelo rústico detectado "
+     "automáticamente del patrón polígono/parcela. Aplica también la "
+     "IA si la prosa no rinde partidas directamente."),
+    ("coac_grancanaria.pdf",
+     "Plantilla COAC vivienda · PDF real",
+     "Plantilla CTE genérica. Demuestra que el motor extrae también de "
+     "formularios estandarizados."),
 ]
 
 
@@ -277,14 +291,31 @@ def build() -> pathlib.Path:
         body,
     ))
 
-    story.append(Paragraph("IA opcional para memorias narrativas", h2))
+    story.append(Paragraph("IA · activa en este servidor", h2))
     story.append(Paragraph(
-        "Cuando subes una memoria de proyecto en formato narrativo (PDF "
-        "técnico que no usa lista numerada de partidas), aparece un botón "
-        "«<b>Extraer partidas con IA</b>». La IA (Llama 3.3 70B vía Groq, "
-        "gratis) propone las partidas mencionadas; el motor determinista "
-        "las precia y la auditoría sigue funcionando. Si nunca quieres "
-        "usarla, no aparece — está apagada por defecto.",
+        "Cuando subes una memoria narrativa (PDF de proyecto técnico sin "
+        "lista numerada de partidas), el panel de resultados ofrece el "
+        "botón <b>«Extraer partidas con IA»</b>. El modelo (<b>Llama 3.3 "
+        "70B</b> vía Groq, gratis) propone partidas contra el catálogo; el "
+        "motor determinista las precia y la auditoría sigue funcionando "
+        "(la IA nunca asienta hechos sola). El Sant Josep PDF de 240 "
+        "páginas pasa de 0 € a ~118.000 € con este flujo. La IA se puede "
+        "apagar al instante desde Render → Environment → <code>LLM_ENABLED"
+        "</code>.",
+        body,
+    ))
+
+    story.append(Paragraph("Catálogo · /admin", h2))
+    story.append(Paragraph(
+        "El menú superior incluye «<b>Catálogo</b>» (<font color='#1a3a5c'>"
+        f"{LIVE_URL}/admin</font>). Dos paneles: <b>(1)</b> subir tu CSV "
+        "propio con cabecera "
+        "<font face='Helvetica-Oblique'>code, unidad, descripcion, "
+        "precio_unitario</font> — al subir, todos los siguientes "
+        "presupuestos usan tus precios. <b>(2)</b> Pegar una URL pública "
+        "(CSV o BC3) — el motor descarga y aplica. Botón de «Restaurar al "
+        "original». Fuentes públicas a la vista: Comunidad de Madrid, "
+        "Junta de Extremadura, CYPE Generador, ITeC BEDEC, PREOC, INE.",
         body,
     ))
 
@@ -308,7 +339,9 @@ def build() -> pathlib.Path:
         "Cada euro del presupuesto es trazable hasta la regla y la línea "
         "de la memoria que lo originó (archivo <font face='Helvetica-Oblique'>"
         "traza.md</font>) — defendible ante el cliente, el técnico o una "
-        "inspección.",
+        "inspección. Próximos pasos en el roadmap: ingestión de archivos "
+        "CAD (DWG / DXF) para extraer mediciones geométricas y mapearlas "
+        "automáticamente al catálogo.",
         small,
     ))
 
