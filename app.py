@@ -13,6 +13,7 @@ On Render the filesystem is ephemeral — that's fine, this is a sample app.
 """
 
 from __future__ import annotations
+import hmac
 import json
 import os
 import pathlib
@@ -23,7 +24,7 @@ import tempfile
 from typing import Iterable
 
 from flask import (
-    Flask, abort, jsonify, redirect, render_template,
+    Flask, Response, abort, jsonify, redirect, render_template,
     request, send_file, url_for,
 )
 from werkzeug.utils import secure_filename
@@ -47,6 +48,41 @@ MAX_UPLOAD_BYTES = 256 * 1024     # 256 KB — memorias are text, generous cap
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
+
+
+# --------------------------------------------------------------------------
+# HTTP Basic Auth (credentials from env, never hard-coded).
+# Set BASIC_AUTH_USER and BASIC_AUTH_PASS to enable. Empty/unset = open.
+# /healthz and /robots.txt are excluded so platform pings and crawlers
+# (which we want to bounce, not authenticate) keep working.
+# --------------------------------------------------------------------------
+
+AUTH_USER = os.environ.get("BASIC_AUTH_USER", "").strip()
+AUTH_PASS = os.environ.get("BASIC_AUTH_PASS", "").strip()
+OPEN_PATHS = {"/healthz", "/robots.txt"}
+
+
+def _auth_ok(req) -> bool:
+    if not (AUTH_USER and AUTH_PASS):
+        return True
+    a = req.authorization
+    if not a or a.type != "basic":
+        return False
+    # constant-time compare to avoid timing oracles
+    return (hmac.compare_digest(a.username or "", AUTH_USER)
+            and hmac.compare_digest(a.password or "", AUTH_PASS))
+
+
+@app.before_request
+def _require_auth():
+    if request.path in OPEN_PATHS:
+        return None
+    if _auth_ok(request):
+        return None
+    return Response(
+        "Autenticación requerida.", 401,
+        {"WWW-Authenticate": 'Basic realm="Motor de Presupuestos", charset="UTF-8"'},
+    )
 
 
 # --------------------------------------------------------------------------

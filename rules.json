@@ -28,6 +28,15 @@
     "Pintura"
   ],
 
+  "duracion_capitulo_dias": {
+    "_doc": "Reference work-plan durations per chapter (working days). Engine treats these as defaults; a real project overrides via project-param.",
+    "Demoliciones": 3,
+    "Albañilería": 7,
+    "Revestimientos": 5,
+    "Pavimentos": 4,
+    "Pintura": 5
+  },
+
   "rules": [
     {
       "name": "MAP_demolicion_tabique",

@@ -123,3 +123,19 @@ table.partidas tr.sub td { font-weight: 700; background: #fafbfd; }
 footer.wrap { color: var(--muted); padding-top: 20px; border-top: 1px solid var(--line); margin-top: 30px; }
 
 .card.error h1 { color: var(--stop); margin-top: 0; }
+
+.client-cta .cta-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+@media (max-width: 600px) { .client-cta .cta-row { grid-template-columns: 1fr; } }
+.cta-tile {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 16px 18px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: #fff; text-decoration: none;
+  box-shadow: 0 1px 0 rgba(0,0,0,.05);
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.cta-tile:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(26,58,92,.18); }
+.cta-tile .cta-label { font-weight: 700; font-size: 16px; }
+.cta-tile .cta-meta  { font-size: 12px; opacity: .85; }

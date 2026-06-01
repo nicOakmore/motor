@@ -43,6 +43,7 @@ import sys
 
 import engine
 import bc3
+import client_pdfs
 
 
 ROOT = pathlib.Path(__file__).parent
@@ -94,6 +95,18 @@ def parse_memoria(path: pathlib.Path) -> dict:
     )
     uso = "vivienda_habitual" if "vivienda habitual" in text.lower() else "otros"
 
+    def _grab(label: str) -> str:
+        # Match "**Label:** value …" or "Label: value …", stops at end of line.
+        m = re.search(rf"\*{{0,2}}{label}\*{{0,2}}\s*:\s*([^\n\r]+)",
+                      text, re.IGNORECASE)
+        if not m:
+            return ""
+        # strip surrounding markdown emphasis and trailing punctuation
+        return re.sub(r"^[*_`\s]+|[*_`\s]+$", "", m.group(1)).strip(" .,:")
+
+    promotor = _grab("Promotor")
+    emplazamiento = _grab("Emplazamiento")
+
     items = []
     for body in ITEM_RE.findall(text):
         # leading word(s) decide the tipo — strip markdown emphasis first
@@ -120,6 +133,8 @@ def parse_memoria(path: pathlib.Path) -> dict:
             "suelo": suelo,
             "requiere_proyecto": requiere_proyecto,
             "uso": uso,
+            "promotor": promotor,
+            "emplazamiento": emplazamiento,
         },
         "items": items,
     }
@@ -380,6 +395,10 @@ def run_for_memoria(memoria_path: pathlib.Path,
     totales = engine.compute_presupuesto(wm)
     plan = engine.compute_plan_acopios(wm)
 
+    # Snapshot facts we'll need for both rendering and PDF generation.
+    flags = [f.data for f in wm.query("flag")]
+    partidas_out = [f.data for f in wm.query("partida")]
+
     out_dir = out_root / memoria_path.stem
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -403,8 +422,25 @@ def run_for_memoria(memoria_path: pathlib.Path,
                              programa="MotorPresupuestos")
     (out_dir / "presupuesto.bc3").write_text(bc3_text, encoding="latin-1")
 
-    flags = [f.data for f in wm.query("flag")]
-    partidas_out = [f.data for f in wm.query("partida")]
+    # Client-facing PDFs. Reference is a short hash of memoria stem + first
+    # partida importe — deterministic + readable, no PII.
+    import hashlib
+    ref = hashlib.sha1(
+        f"{memoria_path.stem}-{totales['PEM']:.2f}".encode("utf-8")
+    ).hexdigest()[:8].upper()
+    duraciones = rules_spec.get("duracion_capitulo_dias", {})
+    duraciones = {k: v for k, v in duraciones.items() if not k.startswith("_")}
+    capitulos = rules_spec.get("capitulo_orden", [])
+    client_pdfs.build_presupuesto_pdf(
+        out_dir / "presupuesto_cliente.pdf",
+        meta=parsed["meta"], totales=totales,
+        partidas=partidas_out, capitulo_orden=capitulos, ref=ref,
+    )
+    client_pdfs.build_plan_obra_pdf(
+        out_dir / "plan_de_obra.pdf",
+        meta=parsed["meta"], partidas=partidas_out,
+        duracion_dias=duraciones, capitulo_orden=capitulos, ref=ref,
+    )
 
     if verbose:
         print(f"  Partidas: {len(partidas_out)}")
