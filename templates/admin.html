@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Catálogo · Administración{% endblock %}
+{% block content %}
+
+<section class="hero">
+  <h1>Catálogo de precios — administración</h1>
+  <p class="muted">
+    Sube tu propio CSV de precios o descarga uno de las bases públicas
+    para sustituir el catálogo de demo. El reemplazo es <em>efímero</em>:
+    se guarda en disco temporal y se reinicia cuando Render redespliega
+    el servicio.
+  </p>
+</section>
+
+{% if request.args.get('ok') %}
+<section class="card flags">
+  <div class="flag flag-info">
+    {% if request.args.get('ok') == 'uploaded' %}
+      <strong>Catálogo actualizado por subida.</strong>
+      Se han cargado <b>{{ request.args.get('rows') }}</b> partidas.
+      Cualquier presupuesto a partir de ahora usará estos precios.
+    {% elif request.args.get('ok') == 'fetched' %}
+      <strong>Catálogo descargado desde URL.</strong>
+      Se han cargado <b>{{ request.args.get('rows') }}</b> partidas.
+    {% elif request.args.get('ok') == 'reset' %}
+      <strong>Catálogo restaurado al original</strong> (111 partidas seed).
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Estado actual</h2>
+  {% if status.active %}
+    <p>
+      Catálogo personalizado activo · <b>{{ status.rows }}</b> partidas ·
+      {{ status.bytes }} bytes · subido el {{ status.mtime }}.
+    </p>
+    <form action="{{ url_for('admin_reset_catalogue') }}" method="post" style="margin-top:10px">
+      <button type="submit" class="primary" style="background:#a86b00">
+        Restaurar al catálogo original (111 partidas)
+      </button>
+    </form>
+  {% else %}
+    <p>Usando el catálogo seed (111 partidas demo Ibiza 2026).</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>1 · Subir tu propio CSV</h2>
+  <p class="muted">
+    Formato: cabecera con al menos las columnas
+    <code>{{ required_cols | join(', ') }}</code>.
+    Opcionales: <code>{{ optional_cols | join(', ') }}</code>.
+    Codificación UTF-8 o CP1252. Tamaño máximo 4 MB.
+  </p>
+  <form action="{{ url_for('admin_upload_csv') }}" method="post"
+        enctype="multipart/form-data" class="row-form">
+    <input type="file" name="catalogue" accept=".csv" required>
+    <button type="submit" class="primary">Subir CSV</button>
+  </form>
+  <p class="muted" style="margin-top:8px">
+    Para una plantilla, descarga el catálogo actual del repo en
+    <a href="https://github.com/nicOakmore/motor/raw/main/precios/precios_ibiza_2026.csv">
+      precios_ibiza_2026.csv
+    </a> y úsalo como referencia.
+  </p>
+</section>
+
+<section class="card">
+  <h2>2 · Descargar desde una URL pública</h2>
+  <p class="muted">
+    Pega la URL directa a un CSV o a un fichero <code>.bc3</code>
+    (FIEBDC-3). El motor descarga, valida e instala como catálogo activo.
+  </p>
+  <form action="{{ url_for('admin_fetch_url') }}" method="post" class="row-form">
+    <input type="url" name="url" placeholder="https://…/precios.csv  ó  https://…/catalogo.bc3"
+           required style="flex:1; min-width:320px; padding:8px 10px; border:1px solid var(--line); border-radius:6px">
+    <button type="submit" class="primary">Descargar y aplicar</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Bases públicas de precios — referencia rápida</h2>
+  <p class="muted">
+    Visita la fuente, descarga el archivo (BC3 / CSV / XLSX) que ofrece y
+    pega la URL de descarga en el panel anterior. Estas bases publican
+    enlaces directos que cambian con cada edición — por eso el motor no
+    los hardcodea.
+  </p>
+  <table class="partidas">
+    <thead>
+      <tr>
+        <th>Fuente</th>
+        <th>Nota</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sources %}
+      <tr>
+        <td>
+          <a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.name }}</a>
+        </td>
+        <td>{{ s.notes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<p><a class="back" href="{{ url_for('index') }}">← Volver a la pantalla principal</a></p>
+
+{% endblock %}

@@ -455,6 +455,25 @@ def parse_memoria(path: pathlib.Path) -> dict:
             block = re.sub(r"\s*\n\s*", " ", block)
             item_bodies.append(block)
 
+    # Second-pass fallback: when no numbered list was found (typical of
+    # narrative PDFs of real proyectos técnicos), scan paragraph by
+    # paragraph for sentences that start with a known scope verb and end
+    # in "<number> m²" / "ud" / etc. This catches the rare real memoria
+    # that DOES note dimensions inline, without giving us hallucinations
+    # from CTE references that mention "altura 2,40 m".
+    if not item_bodies:
+        for para in re.split(r"\n\s*\n", text):
+            para_clean = " ".join(para.split())
+            if len(para_clean) < 20 or len(para_clean) > 400:
+                continue
+            head_lc = para_clean.lower()
+            for pat, _t in SCOPE_VERBS:
+                if not re.match(rf"^{pat}\b", head_lc, re.IGNORECASE):
+                    continue
+                if MEASURE_RE.search(para_clean):
+                    item_bodies.append(para_clean)
+                break
+
     items = []
     for body in item_bodies:
         # strip markdown emphasis; whole-body search so qualifiers that follow
@@ -538,10 +557,30 @@ def parse_memoria(path: pathlib.Path) -> dict:
     }
 
 
+CATALOGUE_OVERRIDE_PATH = pathlib.Path("/tmp/precios_override.csv")
+
+
 def load_price_catalogue() -> list[dict]:
-    """Read every CSV in ./precios/ as price rows. BC3/XLSX/PDF would plug in
-    here too — for the demo only CSV is wired."""
+    """Read every CSV in ./precios/ as price rows. If the admin has uploaded
+    or fetched a custom catalogue, it lives at /tmp/precios_override.csv
+    (Render's ephemeral disk) and takes precedence over the bundled
+    catalogue for the current process lifetime.
+
+    BC3/XLSX/PDF would plug in here too — for the demo only CSV is wired.
+    """
     prices = []
+    # Override (uploaded / fetched) wins when present.
+    if CATALOGUE_OVERRIDE_PATH.exists():
+        with CATALOGUE_OVERRIDE_PATH.open(encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                try:
+                    row["precio_unitario"] = float(row.get("precio_unitario", 0) or 0)
+                except (TypeError, ValueError):
+                    row["precio_unitario"] = 0.0
+                prices.append(row)
+        if prices:
+            return prices
+
     for csv_path in sorted(PRECIOS.glob("precios_*.csv")):
         with csv_path.open(encoding="utf-8") as fh:
             for row in csv.DictReader(fh):

@@ -38,6 +38,7 @@ header .wrap { display: flex; align-items: center; justify-content: space-betwee
 .brand .sub {
   font-weight: 400; font-size: 11px; opacity: .75; margin-top: 3px;
 }
+header nav { display: flex; gap: 8px; }
 header nav a {
   color: #fff; text-decoration: none; opacity: .85; font-size: 14px;
   border: 1px solid rgba(255,255,255,.35); padding: 6px 12px; border-radius: 6px;

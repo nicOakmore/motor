@@ -13,7 +13,9 @@ On Render the filesystem is ephemeral — that's fine, this is a sample app.
 """
 
 from __future__ import annotations
+import csv
 import hmac
+import io
 import json
 import os
 import pathlib
@@ -21,6 +23,8 @@ import re
 import secrets
 import shutil
 import tempfile
+import urllib.error
+import urllib.request
 from typing import Iterable
 
 from flask import (
@@ -29,6 +33,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+import bc3
 import run_demo
 import llm_extract
 
@@ -461,6 +466,214 @@ def llm_suggest(job_id: str):
 @app.get("/healthz")
 def healthz():
     return jsonify(status="ok")
+
+
+# --------------------------------------------------------------------------
+# /admin — catálogo (CSV upload + fetch from a public URL)
+# --------------------------------------------------------------------------
+
+CATALOGUE_COLUMNS_REQUIRED = ("code", "unidad", "descripcion", "precio_unitario")
+CATALOGUE_COLUMNS_OPTIONAL = ("mo", "mat", "maq", "indirectos_pct",
+                              "ambito", "fuente", "fecha")
+MAX_FETCH_BYTES = 4 * 1024 * 1024     # 4 MB cap on any fetched catalogue
+
+
+PUBLIC_SOURCES = [
+    {
+        "name": "Comunidad de Madrid · Base de Precios",
+        "url": "https://www.comunidad.madrid/servicios/vivienda/base-datos-construccion",
+        "notes": "Base oficial. Publicación periódica (BC3 + XLSX). Necesita "
+                 "buscar el enlace al BC3 más reciente en la página.",
+    },
+    {
+        "name": "Junta de Extremadura · Base de Precios",
+        "url": "https://basepreciosconstruccion.gobex.es/",
+        "notes": "Base regional pública con descarga libre. Buscar el "
+                 "enlace al BC3 de la edición vigente.",
+    },
+    {
+        "name": "CYPE · Generador de Precios",
+        "url": "https://generadordeprecios.info/",
+        "notes": "Consulta gratuita por partida. No descarga el catálogo "
+                 "entero; útil para verificar partidas concretas.",
+    },
+    {
+        "name": "ITeC · BEDEC (demo gratuita)",
+        "url": "https://en.itec.cat/services/bedec/",
+        "notes": "Comunidad ITeC: 15 consultas/mes gratis. Suscripción para "
+                 "descarga masiva.",
+    },
+    {
+        "name": "PREOC · Precios de la Construcción",
+        "url": "https://www.preoc.es/",
+        "notes": "Catálogo comercial. Suscripción para descarga.",
+    },
+    {
+        "name": "INE · Índice de precios de materiales",
+        "url": "https://www.ine.es/uc/hAB1z7WY",
+        "notes": "Estadística oficial — no es un catálogo de partidas pero "
+                 "sirve para indexar precios.",
+    },
+]
+
+
+def _csv_rows_to_catalogue(text: str) -> list[dict]:
+    """Parse CSV text, validate required columns, return canonical rows."""
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise ValueError("El CSV está vacío o sin cabecera.")
+    missing = [c for c in CATALOGUE_COLUMNS_REQUIRED if c not in reader.fieldnames]
+    if missing:
+        raise ValueError(
+            f"Faltan columnas obligatorias: {', '.join(missing)}. "
+            f"Requeridas: {', '.join(CATALOGUE_COLUMNS_REQUIRED)}."
+        )
+    rows: list[dict] = []
+    for raw in reader:
+        code = (raw.get("code") or "").strip()
+        if not code:
+            continue
+        try:
+            precio = float((raw.get("precio_unitario") or "0").replace(",", "."))
+        except (TypeError, ValueError):
+            precio = 0.0
+        # Build a sanitised row using only known columns.
+        row = {
+            "code": code,
+            "unidad": (raw.get("unidad") or "").strip(),
+            "descripcion": (raw.get("descripcion") or "").strip(),
+            "precio_unitario": f"{precio:.4f}",
+        }
+        for c in CATALOGUE_COLUMNS_OPTIONAL:
+            v = raw.get(c)
+            if v is not None:
+                row[c] = v.strip() if isinstance(v, str) else v
+        rows.append(row)
+    if not rows:
+        raise ValueError("El CSV no contiene filas válidas con columna `code`.")
+    return rows
+
+
+def _write_override_catalogue(rows: list[dict]) -> None:
+    cols = list(CATALOGUE_COLUMNS_REQUIRED) + list(CATALOGUE_COLUMNS_OPTIONAL)
+    run_demo.CATALOGUE_OVERRIDE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with run_demo.CATALOGUE_OVERRIDE_PATH.open(
+        "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=cols, extrasaction="ignore")
+        w.writeheader()
+        w.writerows(rows)
+
+
+def _override_status() -> dict:
+    path = run_demo.CATALOGUE_OVERRIDE_PATH
+    if not path.exists():
+        return {"active": False, "rows": 0, "bytes": 0}
+    import datetime
+    return {
+        "active": True,
+        "rows": sum(1 for _ in path.open(encoding="utf-8")) - 1,
+        "bytes": path.stat().st_size,
+        "mtime": datetime.datetime.fromtimestamp(
+            path.stat().st_mtime).strftime("%d/%m/%Y %H:%M"),
+    }
+
+
+@app.get("/admin")
+def admin():
+    return render_template(
+        "admin.html",
+        sources=PUBLIC_SOURCES,
+        status=_override_status(),
+        required_cols=CATALOGUE_COLUMNS_REQUIRED,
+        optional_cols=CATALOGUE_COLUMNS_OPTIONAL,
+    )
+
+
+@app.post("/admin/upload-csv")
+def admin_upload_csv():
+    f = request.files.get("catalogue")
+    if not f or not f.filename:
+        return _err("Sube un CSV con la cabecera correcta.", 400)
+    name = secure_filename(f.filename)
+    if not name.lower().endswith(".csv"):
+        return _err("Sólo se admite CSV en este momento.", 400)
+    raw = f.read(MAX_FETCH_BYTES + 1)
+    if len(raw) > MAX_FETCH_BYTES:
+        return _err(f"Demasiado grande (máx {MAX_FETCH_BYTES // 1024} KB).", 413)
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("cp1252")
+        except UnicodeDecodeError:
+            return _err("No se pudo decodificar el CSV (probar UTF-8 o CP1252).", 400)
+    try:
+        rows = _csv_rows_to_catalogue(text)
+    except ValueError as exc:
+        return _err(str(exc), 400)
+    _write_override_catalogue(rows)
+    return redirect(url_for("admin") + f"?ok=uploaded&rows={len(rows)}")
+
+
+@app.post("/admin/fetch-url")
+def admin_fetch_url():
+    url = (request.form.get("url") or "").strip()
+    if not url or not url.lower().startswith(("http://", "https://")):
+        return _err("Pega una URL completa (http:// o https://).", 400)
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "MotorPresupuestos/1.0",
+            "Accept": "text/csv, application/octet-stream, text/plain, */*",
+        })
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            ctype = resp.headers.get_content_type() or ""
+            raw = resp.read(MAX_FETCH_BYTES + 1)
+    except urllib.error.HTTPError as exc:
+        return _err(f"La URL devolvió HTTP {exc.code}.", 502)
+    except Exception as exc:                              # noqa: BLE001
+        return _err(f"No se pudo descargar la URL: {exc}", 502)
+    if len(raw) > MAX_FETCH_BYTES:
+        return _err(f"Recurso demasiado grande (máx {MAX_FETCH_BYTES // 1024} KB).", 413)
+
+    is_bc3 = url.lower().endswith(".bc3") or "bc3" in ctype.lower()
+    try:
+        if is_bc3:
+            try:
+                text = raw.decode("cp1252")
+            except UnicodeDecodeError:
+                text = raw.decode("latin-1", errors="replace")
+            bc3_prices = bc3.parse_bc3(text)
+            if not bc3_prices:
+                return _err("BC3 sin registros ~C utilizables.", 400)
+            # Adapt BC3 price rows to our catalogue shape.
+            rows: list[dict] = []
+            for p in bc3_prices:
+                rows.append({
+                    "code": p["code"],
+                    "unidad": p.get("unidad", ""),
+                    "descripcion": p.get("descripcion", "")[:240],
+                    "precio_unitario": f"{p.get('precio_unitario', 0):.4f}",
+                    "fuente": p.get("fuente", "BC3"),
+                    "ambito": p.get("ambito", "import"),
+                })
+        else:
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                text = raw.decode("cp1252", errors="replace")
+            rows = _csv_rows_to_catalogue(text)
+    except ValueError as exc:
+        return _err(str(exc), 400)
+    _write_override_catalogue(rows)
+    return redirect(url_for("admin") + f"?ok=fetched&rows={len(rows)}&from={request.form.get('url')}")
+
+
+@app.post("/admin/reset-catalogue")
+def admin_reset_catalogue():
+    p = run_demo.CATALOGUE_OVERRIDE_PATH
+    if p.exists():
+        p.unlink()
+    return redirect(url_for("admin") + "?ok=reset")
 
 
 @app.get("/robots.txt")
