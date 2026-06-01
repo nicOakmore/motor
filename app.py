@@ -42,8 +42,8 @@ JOBS_ROOT = pathlib.Path(
 )
 JOBS_ROOT.mkdir(parents=True, exist_ok=True)
 
-ALLOWED_EXT = {".md", ".txt"}
-MAX_UPLOAD_BYTES = 256 * 1024     # 256 KB — memorias are text, generous cap
+ALLOWED_EXT = {".md", ".txt", ".pdf"}
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024     # 8 MB — fits PDF memorias with images
 
 
 app = Flask(__name__)
@@ -106,7 +106,9 @@ def _job_dir(job_id: str) -> pathlib.Path:
 
 
 def _list_samples() -> list[pathlib.Path]:
-    return sorted(SAMPLE_MEMORIAS_DIR.glob("*.md"))
+    md = list(SAMPLE_MEMORIAS_DIR.glob("*.md"))
+    pdf = list(SAMPLE_MEMORIAS_DIR.glob("*.pdf"))
+    return sorted(md + pdf)
 
 
 def _ensure_pdf() -> pathlib.Path:

@@ -227,6 +227,30 @@ HUECOS_SUM_RE = re.compile(
 )
 
 
+def _read_memoria_text(path: pathlib.Path) -> str:
+    """Return the memoria's text content. Supports .md / .txt directly and
+    .pdf via pdfplumber. Other formats fall back to raw bytes decoded as
+    UTF-8 (lossy) — better than nothing."""
+    suf = path.suffix.lower()
+    if suf == ".pdf":
+        try:
+            import pdfplumber                              # noqa: PLC0415
+        except ImportError as exc:
+            raise RuntimeError(
+                "pdfplumber not installed. Install via `pip install pdfplumber`."
+            ) from exc
+        parts: list[str] = []
+        with pdfplumber.open(str(path)) as pdf:
+            for page in pdf.pages:
+                t = page.extract_text() or ""
+                parts.append(t)
+        return "\n".join(parts)
+    if suf in (".md", ".txt", ""):
+        return path.read_text(encoding="utf-8", errors="replace")
+    # Last-resort attempt
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
 def parse_memoria(path: pathlib.Path) -> dict:
     """Return {meta:{...}, items:[{tipo,cantidad,unidad,capitulo}, ...]}.
 
@@ -235,8 +259,11 @@ def parse_memoria(path: pathlib.Path) -> dict:
     ': N m²' provides the medición. Words that appear inside descriptive
     text (e.g. 'paramentos enlucidos' inside a pintura line) do NOT count —
     only the leading verb does.
+
+    Accepts Markdown / plain-text memorias and PDF memorias (the latter
+    via pdfplumber — see _read_memoria_text).
     """
-    text = path.read_text(encoding="utf-8")
+    text = _read_memoria_text(path)
     suelo = "urbano"
     if re.search(r"suelo\s*[:*]+[\s*]*r[uú]stico", text, re.IGNORECASE):
         suelo = "rustico"
@@ -246,23 +273,62 @@ def parse_memoria(path: pathlib.Path) -> dict:
     )
     uso = "vivienda_habitual" if "vivienda habitual" in text.lower() else "otros"
 
+    # Look for an explicit declaration of touristic use of the building.
+    # Just the word "turístico" appears in CTE normative references (fire
+    # safety for "establecimientos turísticos", etc.) regardless of project
+    # type — too noisy on real Ibiza PDFs. Require a head-of-doc declaration
+    # that qualifies USO / DESTINO / VIVIENDA as touristic.
+    HEAD_LEN = 6000
     text_l = text.lower()
+    head = text_l[:HEAD_LEN]
     uso_turistico = bool(re.search(
-        r"\bturíst[ai]c[oa]s?\b|vacacional|alquiler\s+de\s+temporada|\betv\b",
-        text_l,
+        r"\b(?:uso|destino|fin)\s+tur[ií]stic[oa]\b"
+        r"|\balquiler\s+(?:tur[ií]stico|vacacional|de\s+temporada)\b"
+        r"|\bvivienda\s+tur[ií]stica\b"
+        r"|\b(?:ETV|estancias?\s+tur[ií]sticas?\s+en\s+viviendas?)\b",
+        head,
     ))
 
-    def _grab(label: str) -> str:
-        # Match "**Label:** value …" or "Label: value …", stops at end of line.
-        m = re.search(rf"\*{{0,2}}{label}\*{{0,2}}\s*:\s*([^\n\r]+)",
-                      text, re.IGNORECASE)
-        if not m:
-            return ""
-        # strip surrounding markdown emphasis and trailing punctuation
-        return re.sub(r"^[*_`\s]+|[*_`\s]+$", "", m.group(1)).strip(" .,:")
+    # Real proyectos run to hundreds of pages and reuse the same labels in
+    # legal clauses ("…el promotor: a las normas…"). Bias the search to the
+    # title-page region (first ~12 pages, ~10 000 chars). Values may live on
+    # the line after the label (Porreres-style layout) so the regex tolerates
+    # newlines between colon and value.
+    HEADER_LEN = 10_000
+    header = text[:HEADER_LEN]
 
-    promotor = _grab("Promotor")
-    emplazamiento = _grab("Emplazamiento")
+    def _grab(labels: list[str]) -> str:
+        # Two-pass: prefer the ALL-CAPS form (title-page convention),
+        # then fall back to case-insensitive. The Spanish plural for words
+        # ending in consonant adds -ES (Promotor → Promotores).
+        def _clean(v: str) -> str:
+            return re.sub(r"^[*_`\s]+|[*_`\s]+$", "", v).strip(" .,:")
+        for label in labels:
+            m = re.search(
+                rf"\b{label.upper()}(?:ES|S)?\b\s*:\s*([^\n\r]+)",
+                header,
+            )
+            if m:
+                val = _clean(m.group(1))
+                if val and len(val) < 140:
+                    return val
+        for label in labels:
+            m = re.search(
+                rf"\b{label}(?:es|s)?\b\s*:\s*([^\n\r]+)",
+                header, re.IGNORECASE,
+            )
+            if m:
+                val = _clean(m.group(1))
+                if val and len(val) < 140 and not val.lower().startswith(
+                    ("a las ", "el ", "la ", "los ", "las ", "que ", "una ", "un ")
+                ):
+                    return val
+        return ""
+
+    promotor = _grab(["Promotor", "Cliente", "Propiedad", "Titular"])
+    emplazamiento = _grab(["Emplazamiento", "Ubicación", "Ubicacion",
+                            "Situación", "Situacion",
+                            "Dirección de obra", "Dirección"])
 
     items = []
     for body in ITEM_RE.findall(text):
@@ -893,7 +959,7 @@ def main() -> int:
     SALIDAS.mkdir(exist_ok=True)
     args = [pathlib.Path(p) for p in sys.argv[1:]]
     if not args:
-        args = sorted(MEMORIAS.glob("*.md"))
+        args = sorted(list(MEMORIAS.glob("*.md")) + list(MEMORIAS.glob("*.pdf")))
     if not args:
         print("No memorias found. Drop one into ./memorias/ and re-run.")
         return 1

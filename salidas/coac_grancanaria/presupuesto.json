@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "memoria": "coac_grancanaria.pdf",
+    "suelo": "urbano",
+    "requiere_proyecto": false,
+    "uso": "otros",
+    "uso_turistico": false,
+    "incluye_demoliciones": false,
+    "toca_envolvente": false,
+    "promotor": "Sociedad Mercantil, CIF, Dirección postal, nº de teléfono de contacto, nº de fax",
+    "emplazamiento": "C/ Tedera s/n La Garita - Telde, Gran Canaria"
+  },
+  "totales": {
+    "PEM": 0.0,
+    "GG": 0.0,
+    "BI": 0.0,
+    "PEC": 0.0,
+    "IVA": 0,
+    "TOTAL": 0.0,
+    "ICIO": 0.0,
+    "RETENCION": 0.0,
+    "RECARGO_EQUIV": 0.0,
+    "gg_pct": 0.13,
+    "bi_pct": 0.06,
+    "iva_pct": 0.1,
+    "retencion_pct": 0.0,
+    "recargo_pct": 0.0,
+    "iva_breakdown": []
+  },
+  "partidas": []
+}
