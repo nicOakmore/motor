@@ -194,7 +194,11 @@ def _post(payload: dict, api_key: str) -> dict:
 
 
 def _parse_proposals(content: str, allowed_tipos: set[str]) -> list[dict]:
-    """Pull the JSON object out of the model's reply, validate each entry."""
+    """Pull the JSON object out of the model's reply, validate each entry,
+    and deduplicate by `tipo` — when the model emits the same partida
+    several times (typically one row per room from a superficies table),
+    we sum the mediciones into a single entry. Caps the per-tipo sum so
+    a hallucinated huge total can be spotted in the editor."""
     # Try direct JSON first; if the model wrapped it in prose, fall back to
     # the first {…} block.
     obj = None
@@ -213,8 +217,8 @@ def _parse_proposals(content: str, allowed_tipos: set[str]) -> list[dict]:
     if not isinstance(proposals, list):
         return []
 
-    out: list[dict] = []
     allowed_units = {"m2", "m3", "m", "ud", "kg"}
+    by_tipo: dict[str, dict] = {}
     for entry in proposals:
         if not isinstance(entry, dict):
             continue
@@ -230,8 +234,15 @@ def _parse_proposals(content: str, allowed_tipos: set[str]) -> list[dict]:
         unidad = (entry.get("unidad") or "").strip().lower()
         if unidad not in allowed_units:
             unidad = "ud"
-        out.append({"tipo": tipo, "cantidad": cantidad, "unidad": unidad})
-    return out
+        if tipo in by_tipo:
+            # Same partida reported again — sum the mediciones (typical
+            # "one row per room" hallucination). Keep the first unit.
+            by_tipo[tipo]["cantidad"] = round(
+                by_tipo[tipo]["cantidad"] + cantidad, 2)
+        else:
+            by_tipo[tipo] = {"tipo": tipo, "cantidad": round(cantidad, 2),
+                              "unidad": unidad}
+    return list(by_tipo.values())
 
 
 def _call_model(model: str, memoria_text: str, max_chars: int,
