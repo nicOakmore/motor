@@ -228,29 +228,58 @@ HUECOS_SUM_RE = re.compile(
 
 
 def _read_memoria_text(path: pathlib.Path,
-                       max_pages: int = 60) -> str:
-    """Return the memoria's text content. Supports .md / .txt directly and
-    .pdf via pdfplumber. Caps the PDF at `max_pages` pages — proyectos
-    técnicos run to hundreds of pages and the metadata + scope sit at the
-    top; reading the whole thing OOMs the Render free-tier worker.
+                       max_pages: int = 30) -> str:
+    """Return the memoria's text content. Supports .md / .txt directly,
+    .pdf via pypdf (light, fast) with pdfplumber as a fallback.
 
-    Other formats fall back to raw bytes decoded as UTF-8 (lossy)."""
+    Page cap of `max_pages` keeps proyectos técnicos (which can run past
+    200 pages) within the free-tier worker's memory budget. The project
+    header — promotor, emplazamiento, suelo, type — always sits in the
+    first 5-10 pages, so capping costs us no useful metadata.
+
+    Other formats fall back to raw bytes decoded as UTF-8 (lossy).
+    """
     suf = path.suffix.lower()
     if suf == ".pdf":
+        # pypdf is ~30× faster than pdfplumber on COAC-style PDFs full of
+        # vector-graphic paths, and crucially doesn't blow the worker's
+        # heap. We use it as the primary extractor.
         try:
-            import pdfplumber                              # noqa: PLC0415
+            import pypdf                                  # noqa: PLC0415
+        except ImportError:
+            pypdf = None
+        if pypdf is not None:
+            parts: list[str] = []
+            try:
+                reader = pypdf.PdfReader(str(path))
+                for idx, page in enumerate(reader.pages):
+                    if idx >= max_pages:
+                        break
+                    try:
+                        parts.append(page.extract_text() or "")
+                    except Exception:                     # noqa: BLE001
+                        # Skip the page if it has a malformed object; the
+                        # rest of the doc usually still parses.
+                        continue
+                return "\n".join(parts)
+            except Exception:                             # noqa: BLE001
+                # Fall through to pdfplumber if pypdf chokes on the doc.
+                pass
+        try:
+            import pdfplumber                             # noqa: PLC0415
         except ImportError as exc:
             raise RuntimeError(
-                "pdfplumber not installed. Install via `pip install pdfplumber`."
+                "Neither pypdf nor pdfplumber is installed."
             ) from exc
-        parts: list[str] = []
+        parts = []
         with pdfplumber.open(str(path)) as pdf:
             for idx, page in enumerate(pdf.pages):
                 if idx >= max_pages:
                     break
-                t = page.extract_text() or ""
-                parts.append(t)
-                # Release per-page caches as we go.
+                try:
+                    parts.append(page.extract_text() or "")
+                except Exception:                         # noqa: BLE001
+                    continue
                 page.flush_cache()
         return "\n".join(parts)
     if suf in (".md", ".txt", ""):
@@ -297,15 +326,25 @@ def parse_memoria(path: pathlib.Path) -> dict:
     ))
 
     # --- Auto-detect requiere_proyecto from prose. ---
-    # If the markdown sample explicitly says "REQUIERE PROYECTO TÉCNICO"
-    # (and isn't preceded by "no"), that wins. Otherwise, treat any of the
-    # following title-page patterns as evidence: "PROYECTO BÁSICO",
-    # "PROYECTO DE EJECUCIÓN", "PROYECTO BÁSICO Y DE EJECUCIÓN", "PROYECTO
-    # TÉCNICO" — these documents only exist *because* the work requires a
-    # proyecto técnico under LOE 38/1999.
+    # The explicit markdown phrase "REQUIERE PROYECTO TÉCNICO" (without a
+    # leading "no") sets it above. As a fallback, the title-page patterns
+    # "PROYECTO BÁSICO", "PROYECTO DE EJECUCIÓN", "PROYECTO TÉCNICO" are
+    # strong evidence too — documents only exist because the work requires
+    # a proyecto técnico under LOE 38/1999.
+    #
+    # Critically: we first scan for an explicit OPT-OUT ("no requiere
+    # proyecto técnico", "sin proyecto técnico"). When present, the auto-
+    # detect is suppressed — markdown samples sometimes mention "proyecto
+    # técnico" inside a "no requiere..." clause.
     head_text = text[:HEAD_LEN]
     head_no_accent = head_text.upper()
-    if not requiere_proyecto:
+    has_opt_out = bool(re.search(
+        r"\bNO\s+REQUIERE\s+PROYECTO\b"
+        r"|\bSIN\s+PROYECTO\s+T[ÉE]CNICO\b"
+        r"|\bNO\s+ES\s+NECESARIO\s+PROYECTO\b",
+        head_no_accent,
+    ))
+    if not requiere_proyecto and not has_opt_out:
         if re.search(
             r"\bPROYECTO\s+(?:B[ÁA]SICO(?:\s+Y\s+DE\s+EJECUCI[ÓO]N)?"
             r"|DE\s+EJECUCI[ÓO]N|T[ÉE]CNICO)\b",
@@ -798,7 +837,11 @@ def write_artefacts(out_dir: pathlib.Path,
             _render_trace_md(trace_rows), encoding="utf-8")
 
     bc3_text = bc3.write_bc3(partidas, programa="MotorPresupuestos")
-    (out_dir / "presupuesto.bc3").write_text(bc3_text, encoding="latin-1")
+    # FIEBDC-3 uses Windows-1252 (CP1252) — covers em-dash, smart quotes,
+    # bullets, etc. that real Spanish memorias contain. Strict latin-1
+    # rejects all of those.
+    (out_dir / "presupuesto.bc3").write_text(
+        bc3_text, encoding="cp1252", errors="replace")
 
     client_pdfs.build_presupuesto_pdf(
         out_dir / "presupuesto_cliente.pdf",
@@ -1054,7 +1097,12 @@ def _ingest_bc3(memoria_path: pathlib.Path,
     """When the input is a .bc3 export from Presto/Arquímedes/CYPE, we
     bypass the memoria parser and load partidas directly. Returns a
     parsed-shaped dict so the rest of the pipeline is identical."""
-    text = memoria_path.read_text(encoding="latin-1", errors="replace")
+    # FIEBDC files emitted by Presto/Arquímedes/CYPE use Windows-1252;
+    # latin-1 also works as a strict subset for most files.
+    try:
+        text = memoria_path.read_text(encoding="cp1252", errors="replace")
+    except (OSError, UnicodeError):
+        text = memoria_path.read_text(encoding="latin-1", errors="replace")
     parsed_bc3 = bc3.parse_bc3_full(text)
     bc3_partidas = parsed_bc3["partidas"]
 
@@ -1104,6 +1152,7 @@ def _ingest_bc3(memoria_path: pathlib.Path,
             "indirectos_pct": p.get("indirectos_pct", 0.06),
             "price_ref": p.get("price_ref", ""),
             "descompuesto": p.get("descompuesto", []),
+            "pliego": p.get("pliego", ""),
         }, produced_by="ingesta_bc3")
 
     return {"meta": meta, "items": [], "bc3_partidas": bc3_partidas}

@@ -1,7 +1,8 @@
 Flask==3.0.3
 gunicorn==23.0.0
 reportlab==4.2.5
-pdfplumber==0.11.4        # extract text from memorias submitted as PDF
+pypdf==5.2.0              # primary PDF text extractor — light, fast, no graphics processing
+pdfplumber==0.11.4        # fallback if pypdf chokes on a doc (rarely used)
 # Optional, for additional ingest at the edges (not required by the demo):
 # openpyxl==3.1.5         # read XLSX price lists in ./precios/
 # clips==1.0.6            # native CLIPS 6.4 engine (engine.py is pure-Python by default)
